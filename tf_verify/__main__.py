@@ -435,8 +435,8 @@ elif not config.geometric:
 
 dataset = config.dataset
 
-if zonotope_bool==False:
-   assert dataset in ['mnist', 'cifar10', 'acasxu', 'fashion'], "only mnist, cifar10, acasxu, and fashion datasets are supported"
+# if zonotope_bool==False:
+#    assert dataset in ['mnist', 'cifar10', 'acasxu', 'fashion'], "only mnist, cifar10, acasxu, and fashion datasets are supported"
 
 mean = 0
 std = 0
@@ -1358,7 +1358,10 @@ else:
         epsilons = csv.reader(epsfile, delimiter=',')
         for i, val in enumerate(epsilons):
             eps_array = val  
-            
+    correct_list = []     
+    # fullpath = "PRIMA_peacock.csv"   
+    net_name_list = netname.split("/")
+    net_file = net_name_list[-1]
     for i, test in enumerate(tests):
         if config.from_test and i < config.from_test:
             continue
@@ -1366,6 +1369,7 @@ else:
         if config.num_tests is not None and i >= config.from_test + config.num_tests:
             break
         image= np.float64(test[1:len(test)])/np.float64(255)
+        # print(image)
         specLB = np.copy(image)
         specUB = np.copy(image)
         if config.quant_step:
@@ -1377,6 +1381,9 @@ else:
         #for _, image in enumerate(cifarimages):
         #    specLB = np.float64(image)
         #specUB = np.copy(specLB)
+        # means = [0,0,0]
+        # stds = [1,1,1]
+        # print(means, stds)
         normalize(specLB, means, stds, dataset)
         normalize(specUB, means, stds, dataset)
 
@@ -1393,20 +1400,16 @@ else:
             print("concrete ", nlb[-1])
             if label == int(test[0]):
                 is_correctly_classified = True
-        #for number in range(len(nub)):
-        #    for element in range(len(nub[number])):
-        #        if(nub[number][element]<=0):
-        #            print('False')
-        #        else:
-        #            print('True')
         if config.epsfile!= None:
             epsilon = np.float64(eps_array[i])
         
         #if(label == int(test[0])):
         if is_correctly_classified == True:
+            status = "null"
             label = int(test[0])
             perturbed_label = None
             correctly_classified_images +=1
+            correct_list.append(i)
             if config.normalized_region==True:
                 specLB = np.clip(image - epsilon,0,1)
                 specUB = np.clip(image + epsilon,0,1)
@@ -1507,7 +1510,8 @@ else:
                                                                                       partial_milp=0,
                                                                                       max_milp_neurons=0,
                                                                                       approx_k=0)
-                    print("nlb ", nlb[-1], " nub ", nub[-1],"adv labels ", failed_labels)
+                    # print(len(nlb))
+                    # print("nlb ", nlb[-1], " nub ", nub[-1],"adv labels ", failed_labels)
                 if not domain.endswith("poly") or not (perturbed_label==label):
                     perturbed_label, _, nlb, nub, failed_labels, x = eran.analyze_box(specLB, specUB, domain,
                                                                                       config.timeout_lp,
@@ -1526,6 +1530,7 @@ else:
                     print("nlb ", nlb[-1], " nub ", nub[-1], "adv labels ", failed_labels)
                 if (perturbed_label==label):
                     print("img", i, "Verified", label)
+                    status = "Verified"
                     verified_images += 1
                 else:
                     if complete==True and failed_labels is not None:
@@ -1540,6 +1545,7 @@ else:
                                 cex_label,_,_,_,_,_ = eran.analyze_box(adv_image[0], adv_image[0], 'deepzono', config.timeout_lp, config.timeout_milp, config.use_default_heuristic, approx_k=config.approx_k)
                                 if(cex_label!=label):
                                     denormalize(adv_image[0], means, stds, dataset)
+                                    print(adv_image[0])
                                     # print("img", i, "Verified unsafe with adversarial image ", adv_image, "cex label", cex_label, "correct label ", label)
                                     print("img", i, "Verified unsafe against label ", cex_label, "correct label ", label)
                                     unsafe_images+=1
@@ -1548,22 +1554,28 @@ else:
                             else:
                                 print("img", i, "Failed with MILP")
                     else:
-                    
                         if x != None:
                             cex_label,_,_,_,_,_ = eran.analyze_box(x,x,'deepzono',config.timeout_lp, config.timeout_milp, config.use_default_heuristic, approx_k=config.approx_k)
-                            print("cex label ", cex_label, "label ", label)
+                            # print("cex label ", cex_label, "label ", label)
                             if(cex_label!=label):
                                 denormalize(x,means, stds, dataset)
+                                # print("violation here", x)
                                 # print("img", i, "Verified unsafe with adversarial image ", x, "cex label ", cex_label, "correct label ", label)
                                 print("img", i, "Verified unsafe against label ", cex_label, "correct label ", label)
+                                status = "Falsified"
                                 unsafe_images += 1
                             else:
+                                status = "DK"
                                 print("img", i, "Failed, without a adversarial example")
                         else:
+                            status = "DK"
                             print("img", i, "Failed")
 
             end = time.time()
             cum_time += end - start # only count samples where we did try to certify
+            # with open(fullpath, 'a+', newline='') as write_obj:
+            #     csv_writer = csv.writer(write_obj)
+            #     csv_writer.writerow([net_file, str(dataset), "img "+str(i)+" with label "+str(int(test[0])), "eps="+str(epsilon), "PRIMA", str(end - start)+" secs", status])
         else:
             print("img",i,"not considered, incorrectly classified")
             end = time.time()
@@ -1573,7 +1585,10 @@ else:
               f"verified: {verified_images}/{correctly_classified_images}, "
               f"unsafe: {unsafe_images}/{correctly_classified_images}, ",
               f"time: {end - start:.3f}; {0 if cum_time==0 else cum_time / correctly_classified_images:.3f}; {cum_time:.3f}")
-
-
-
+        # with open(fullpath, 'a+', newline='') as write_obj:
+        #     csv_writer = csv.writer(write_obj)
+        #     csv_writer.writerow(["verified", str(verified_images)+'/'+str(correctly_classified_images)])
+        #     csv_writer.writerow(["unsafe", str(unsafe_images)+'/'+str(correctly_classified_images)])
+        #     csv_writer.writerow(["average time", str(cum_time / correctly_classified_images)])
     print('analysis precision ',verified_images,'/ ', correctly_classified_images)
+    print('correct image list', correct_list)

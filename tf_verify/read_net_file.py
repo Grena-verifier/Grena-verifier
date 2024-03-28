@@ -15,7 +15,7 @@
 """
 
 
-import tensorflow as tf
+# import tensorflow as tf
 import numpy as np
 import re
 import onnx
@@ -75,13 +75,13 @@ def permutation(W, h, w, c):
     
     return np.matmul(W, m) 
 
-is_tf_version_2 = tf.__version__[0]=='2'
+# is_tf_version_2 = tf.__version__[0]=='2'
 
-if is_tf_version_2: 
-   tf = tf.compat.v1
+# if is_tf_version_2: 
+#    tf = tf.compat.v1
 
-tf.InteractiveSession().as_default()
-tf.disable_eager_execution()
+# tf.InteractiveSession().as_default()
+# tf.disable_eager_execution()
 
 def read_tensorflow_net(net_file, in_len, is_trained_with_pytorch, is_gpupoly):
     mean = 0.0

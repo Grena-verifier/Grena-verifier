@@ -29,6 +29,7 @@ import multiprocessing
 import math
 
 from config import config
+from wralu_functions import krelu_with_sci
 
 """
 For representing the constraints CDD format is used
@@ -57,14 +58,17 @@ def generate_linexpr0(offset, varids, coeffs):
 
 
 class KAct:
-    def __init__(self, input_hrep, approx=True):
+    def __init__(self, input_hrep, lbi, ubi, approx=True, use_wralu=False):
         assert KAct.type in ["ReLU", "Tanh", "Sigmoid"]
         self.k = len(input_hrep[0]) - 1
         self.input_hrep = np.array(input_hrep)
 
         if KAct.type == "ReLU":
             if approx:
-                self.cons = fkrelu(self.input_hrep)
+                if use_wralu:
+                    self.cons = krelu_with_sci(self.input_hrep, lbi, ubi)
+                else:
+                    self.cons = fkrelu(self.input_hrep)
             else:
                 self.cons = krelu_with_cdd(self.input_hrep)
         elif not approx:
@@ -75,8 +79,8 @@ class KAct:
             self.cons = fsigm_orthant(self.input_hrep)
 
 
-def make_kactivation_obj(input_hrep, approx=True):
-    return KAct(input_hrep, approx)
+def make_kactivation_obj(input_hrep, lbi, ubi, approx=True, use_wralu=False):
+    return KAct(input_hrep, lbi, ubi, approx, use_wralu)
 
 
 def get_ineqs_zono(varsid):
@@ -135,7 +139,7 @@ def sparse_heuristic_with_cutoff(length, lb, ub, K=3, s=-2):
           "split_zero", len(all_vars),
           "after cutoff", n_vars_above_cutoff,
           "number of args", len(kact_args))
-
+    # print(kact_args)
     return kact_args
 
 
@@ -178,7 +182,7 @@ def sparse_heuristic_curve(length, lb, ub, is_sigm, s=-2):
     return kact_args
 
 
-def encode_kactivation_cons(nn, man, element, offset, layerno, length, lbi, ubi, constraint_groups, need_pop, domain, activation_type, K=3, s=-2, approx=True):
+def encode_kactivation_cons(nn, man, element, offset, layerno, length, lbi, ubi, constraint_groups, need_pop, domain, activation_type, K=3, s=-2, approx=True, use_wralu=False):
     import deepzono_nodes as dn
     if need_pop:
         constraint_groups.pop()
@@ -227,7 +231,7 @@ def encode_kactivation_cons(nn, man, element, offset, layerno, length, lbi, ubi,
                 i = i + 1
         upper_bound = get_upper_bound_for_linexpr0(man,element,linexpr0, total_size, layerno)
         i=0
-        input_hrep_array = []
+        input_hrep_array, lb_array, ub_array = [], [], []
         for varsid in kact_args:
             input_hrep = []
             for coeffs in itertools.product([-1, 0, 1], repeat=len(varsid)):
@@ -236,6 +240,8 @@ def encode_kactivation_cons(nn, man, element, offset, layerno, length, lbi, ubi,
                 input_hrep.append([upper_bound[i]] + [-c for c in coeffs])
                 i = i + 1
             input_hrep_array.append(input_hrep)
+            lb_array.append([lbi[varid] for varid in varsid])
+            ub_array.append([ubi[varid] for varid in varsid])
     end_input = time.time()
 
     # kact_results = list(map(make_kactivation_obj, input_hrep_array))
@@ -244,7 +250,8 @@ def encode_kactivation_cons(nn, man, element, offset, layerno, length, lbi, ubi,
 
     with multiprocessing.Pool(config.numproc) as pool:
         # kact_results = pool.map(make_kactivation_obj, input_hrep_array)
-        kact_results = pool.starmap(make_kactivation_obj, zip(input_hrep_array, len(input_hrep_array) * [approx]))
+        num_inputs = len(input_hrep_array)
+        kact_results = pool.starmap(make_kactivation_obj, zip(input_hrep_array, lb_array, ub_array, [approx] * num_inputs, [use_wralu] * num_inputs))
 
     # end2 = time.time()
 

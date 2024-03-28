@@ -1,0 +1,8 @@
+/arena_results/*
+/ASE_results/*
+/ASE_scripts/*
+/GPUARENA/*
+/shaun_wralu_gurobi_experiments
+/data_handle.py
+/dp_rsip_time.py
+/test.ipynb

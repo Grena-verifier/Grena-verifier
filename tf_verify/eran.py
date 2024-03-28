@@ -15,7 +15,7 @@
 """
 
 
-from tensorflow_translator import *
+# from tensorflow_translator import *
 from onnx_translator import *
 from optimizer import *
 from analyzer import *
@@ -48,9 +48,10 @@ class ERAN:
         """
         if is_onnx:
             translator = ONNXTranslator(model, False)
-        else:
-            translator = TFTranslator(model, session)
+        # else:
+        #     translator = TFTranslator(model, session)
         operations, resources = translator.translate()
+        self.operations = operations[1:]
         self.input_shape = resources[0]["deeppoly"][2]
         self.optimizer  = Optimizer(operations, resources)
         print('This network has ' + str(self.optimizer.get_neuron_count()) + ' neurons.')
@@ -100,7 +101,56 @@ class ERAN:
                                 use_milp=use_milp, complete=complete,
                                 partial_milp=partial_milp, max_milp_neurons=max_milp_neurons,
                                 approx_k=approx_k)
+        # replacing this analyze with self-defined analyze_poly as zono domain not involved
         dominant_class, nlb, nub, failed_labels, x = analyzer.analyze(terminate_on_failure=terminate_on_failure)
+        if terminate_on_failure:
+            failed_labels = None # rather return nothing than an incomplete list
+            
+        if testing:
+            return dominant_class, nn, nlb, nub, output_info
+        else:
+            return dominant_class, nn, nlb, nub, failed_labels, x
+
+    def analyze_with_gt(self, specLB, specUB, domain, timeout_lp, timeout_milp, use_default_heuristic,
+                    output_constraints=None, lexpr_weights= None, lexpr_cst=None, lexpr_dim=None, uexpr_weights=None,
+                    uexpr_cst=None, uexpr_dim=None, expr_size=0, testing = False,label=-1, prop = -1,
+                    spatial_constraints=None, K=3, s=-2, timeout_final_lp=100, timeout_final_milp=100, use_milp=False,
+                    complete=False, terminate_on_failure=True, partial_milp=False, max_milp_neurons=30, approx_k=True,
+                    IOIL_lbs = None, IOIL_ubs = None, ARENA=False, multi_prune=3, onnx_path = None,
+                    bounds_save_path: str = "dump.pkl", use_wralu=False):
+        """
+        This function runs the analysis with the provided model and session from the constructor, the box specified by specLB and specUB is used as input. Currently we have three domains, 'deepzono',      		'refinezono' and 'deeppoly'.
+        
+        Arguments
+        ---------
+        specLB : numpy.ndarray
+            ndarray with the lower bound of the input box
+        specUB : numpy.ndarray
+            ndarray with the upper bound of the input box
+        domain : str
+            either 'deepzono', 'refinezono', 'deeppoly', or 'refinepoly', decides which set of abstract transformers is used.
+            
+        Return
+        ------
+        dominant_class : int
+            if the analysis is succesfull (it could prove robustness for this box) then the index of the class that dominates is returned
+            if the analysis couldn't prove robustness then -1 is returned
+        """
+        assert domain in ['deepzono', 'refinezono', 'deeppoly', 'refinepoly'], "domain isn't valid, must be 'deepzono' or 'deeppoly'"
+        specLB = np.reshape(specLB, (-1,))
+        specUB = np.reshape(specUB, (-1,))
+        nn = layers()
+        nn.specLB = specLB
+        nn.specUB = specUB
+        if domain == 'deeppoly' or domain == 'refinepoly':
+            execute_list, output_info = self.optimizer.get_deeppoly(nn, specLB, specUB, lexpr_weights, lexpr_cst, lexpr_dim, uexpr_weights, uexpr_cst, uexpr_dim, expr_size, spatial_constraints)
+            analyzer = Analyzer(execute_list, nn, domain, timeout_lp, timeout_milp, output_constraints,
+                                use_default_heuristic, label, prop, testing, K=K, s=s,
+                                timeout_final_lp=timeout_final_lp, timeout_final_milp=timeout_final_milp,
+                                use_milp=use_milp, complete=complete,
+                                partial_milp=partial_milp, max_milp_neurons=max_milp_neurons,
+                                approx_k=approx_k, ARENA=ARENA)
+        dominant_class, nlb, nub, failed_labels, x = analyzer.analyze_poly(terminate_on_failure=terminate_on_failure, ground_truth_label=label, IOIL_lbs=IOIL_lbs, IOIL_ubs=IOIL_ubs, multi_prune=multi_prune, onnx_path=onnx_path, bounds_save_path=bounds_save_path, use_wralu=use_wralu)
         if terminate_on_failure:
             failed_labels = None # rather return nothing than an incomplete list
             

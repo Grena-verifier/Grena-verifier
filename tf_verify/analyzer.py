@@ -15,13 +15,116 @@
 """
 
 
+import pickle
 from elina_abstract0 import *
 from elina_manager import *
 from deeppoly_nodes import *
 from deepzono_nodes import *
+from krelu import *
 from functools import reduce
 from ai_milp import milp_callback
+from typing import List
+from torch import Tensor, nn
+# from ml-part-time.src.compare_against_gurobi import compare_against_gurobi
+from ml_bound_solver.src.preprocessing.solver_inputs import SolverInputs
+from ml_bound_solver.src.solve import solve
+from ml_bound_solver.src.utils import load_onnx_model
+# from ml-part-time.src.utils import seed_everything
+
 import gc
+import torch
+import cdd
+import numpy as np
+import os.path
+
+
+def dump_solver_inputs(
+    lbounds: List[np.ndarray],
+    ubounds: List[np.ndarray],
+
+    Pall: List[np.ndarray],
+    Phatall: List[np.ndarray],
+    smallpall: List[np.ndarray],
+
+    Hmatrix: np.ndarray,
+    dvector: np.ndarray,
+
+    save_filename: str = 'dump.pth'
+) -> None:
+    """
+    Saves the provided solver input parameters to a Pytorch `.pth` file
+    specified by the `save_filename` parameter.
+    """
+    # Check that the variable types are correct.
+    list_error_msg = "`{var}` is not type `list[np.ndarray]`."
+    array_error_msg =  "`{var}` is not type `np.ndarray`."
+    assert isinstance(lbounds, List) and all(isinstance(item, np.ndarray) for item in lbounds), list_error_msg.format(var='lbounds')
+    assert isinstance(ubounds, List) and all(isinstance(item, np.ndarray) for item in ubounds), list_error_msg.format(var='ubounds')
+    assert isinstance(Pall, List) and all(isinstance(item, np.ndarray) for item in Pall), list_error_msg.format(var='Pall')
+    assert isinstance(Phatall, List) and all(isinstance(item, np.ndarray) for item in Phatall), list_error_msg.format(var='Phatall')
+    assert isinstance(smallpall, List), array_error_msg.format(var='smallpall')
+    assert isinstance(Hmatrix, np.ndarray), array_error_msg.format(var='Hmatrix')
+    assert isinstance(dvector, np.ndarray), array_error_msg.format(var='dvector')    
+
+    # Convert numpy arrays to PyTorch tensors and then into the formats used in the solver.
+    L: List[Tensor] = [torch.tensor(x).float().squeeze() for x in lbounds]
+    U: List[Tensor] = [torch.tensor(x).float().squeeze() for x in ubounds]
+    H: Tensor = torch.tensor(Hmatrix).float().squeeze()
+    d: Tensor = torch.tensor(dvector).float().squeeze()
+    P: List[Tensor] = [torch.tensor(x).float().squeeze() for x in Pall]
+    P_hat: List[Tensor] = [torch.tensor(x).float().squeeze() for x in Phatall]
+    p: List[Tensor] = [torch.tensor(x).float().squeeze() for x in smallpall]
+
+    # Save to file.
+    torch.save({
+        'L': L,
+        'U': U,
+        'H': H,
+        'd': d,
+        'P': P,
+        'P_hat': P_hat,
+        'p': p,
+    }, save_filename)
+
+# def wrap_SolverInputs(
+#     lbounds: List[np.ndarray],
+#     ubounds: List[np.ndarray],
+
+#     Pall: List[np.ndarray],
+#     Phatall: List[np.ndarray],
+#     smallpall: List[np.ndarray],
+
+#     Hmatrix: np.ndarray,
+#     dvector: np.ndarray,
+
+#     ground_truth_neuron_index: int,
+#     model: nn.Module
+# ) -> SolverInputs:
+#     """
+#     wrap up the set of inputs as class SolverInputs defined
+#     """
+#     # Convert numpy arrays to PyTorch tensors and then into the formats used in the solver.
+#     L: List[Tensor] = [torch.tensor(x).float().squeeze() for x in lbounds]
+#     U: List[Tensor] = [torch.tensor(x).float().squeeze() for x in ubounds]
+#     H: Tensor = torch.tensor(Hmatrix).float().squeeze()
+#     d: Tensor = torch.tensor(dvector).float().squeeze()
+#     P: List[Tensor] = [torch.tensor(x).float().squeeze() for x in Pall]
+#     P_hat: List[Tensor] = [torch.tensor(x).float().squeeze() for x in Phatall]
+#     p: List[Tensor] = [torch.tensor(x).float().squeeze() for x in smallpall]
+
+#     # Save to class SolverInputs.
+#     solver_inputs = SolverInputs(
+#         model=model,
+#         ground_truth_neuron_index=ground_truth_neuron_index,
+#         L_list = L,
+#         U_list = U,
+#         H = H,
+#         d = d,
+#         P_list = P,
+#         P_hat_list = P_hat,
+#         p_list = p,
+#     )
+#     return solver_inputs
 
 class layers:
     def __init__(self):
@@ -110,12 +213,10 @@ class layers:
         return grad_lower, grad_upper
 
 
-
-
 class Analyzer:
     def __init__(self, ir_list, nn, domain, timeout_lp, timeout_milp, output_constraints, use_default_heuristic, label,
                  prop, testing = False, K=3, s=-2, timeout_final_lp=100, timeout_final_milp=100, use_milp=False,
-                 complete=False, partial_milp=False, max_milp_neurons=30, approx_k=True):
+                 complete=False, partial_milp=False, max_milp_neurons=30, approx_k=True, ARENA=False):
         """
         Arguments
         ---------
@@ -149,6 +250,7 @@ class Analyzer:
         self.label = label
         self.prop = prop
         self.complete = complete
+        self.ARENA = ARENA
         self.K=K
         self.s=s
         self.partial_milp=partial_milp
@@ -158,7 +260,6 @@ class Analyzer:
     def __del__(self):
         elina_manager_free(self.man)
         
-    
     def get_abstract0(self):
         """
         processes self.ir_list and returns the resulting abstract element
@@ -193,7 +294,6 @@ class Analyzer:
         if self.testing:
             return element, testing_nlb, testing_nub
         return element, nlb, nub
-    
     
     def analyze(self,terminate_on_failure=True):
         """
@@ -254,7 +354,8 @@ class Analyzer:
             else:
                 model.setParam(GRB.Param.TimeLimit, self.timeout_final_lp)
 
-            model.setParam(GRB.Param.Cutoff, 0.01)
+            model.setParam(GRB.Param.Cutoff, 0.01)  # Indicates that you aren't interested in solutions whose objective values are worse than the specified value. If the objective value for the optimal solution is equal to or better than the specified cutoff, the solver will return the optimal solution. Otherwise, it will terminate with a CUTOFF status.
+
 
             num_var = len(var_list)
             output_size = num_var - counter
@@ -396,3 +497,519 @@ class Analyzer:
                     break
         elina_abstract0_free(self.man, element)
         return dominant_class, nlb, nub, label_failed, x
+
+    def obtain_output_bound(self, man, element, nn):
+        layerno = len(nn.layertypes) -1
+        length = get_num_neurons_in_layer(man, element, layerno)
+        bounds = box_for_layer(self.man, element, layerno)
+        itv = [bounds[i] for i in range(length)]
+        nlb = [x.contents.inf.contents.val.dbl for x in itv]
+        nub = [x.contents.sup.contents.val.dbl for x in itv]
+        elina_interval_array_free(bounds,length)
+        lbi = np.asarray(nlb, dtype=np.double)
+        ubi = np.asarray(nub, dtype=np.double)      
+        print(lbi)
+        print(ubi)
+        return lbi, ubi
+
+    def analyze_poly(
+        self,
+        terminate_on_failure=True,
+        ground_truth_label=-1,
+        IOIL_lbs=None,
+        IOIL_ubs=None,
+        multi_prune=3,
+        onnx_path = None,
+        bounds_save_path: str = "dump.pkl",
+        use_wralu: bool = False
+    ):
+        """
+        analyses the network with the given input
+        
+        Returns
+        -------
+        output: int
+            index of the dominant class. If no class dominates then returns -1
+        """
+        assert ground_truth_label!=-1, "The ground truth label cannot be -1!!!!!!!!!!!!!Please pass the correct parameter"
+        # self.K=0
+        # self.s=0 # remove the prima execution for this execution 
+        print("ONNX network path is", onnx_path)
+        element, nlb, nub = self.get_abstract0()
+        # print("end krelu??")
+        output_size = self.ir_list[-1].output_length
+        dominant_class = -1
+        label_failed = []
+        x = None
+        candidate_labels = []
+        adv_labels = []
+        for i in range(output_size):
+            adv_labels.append(i)
+
+        label = ground_truth_label # just one gt label in our scenerio
+
+        final_adv_labels = {}
+        for adv_label in adv_labels:
+            if label == adv_label:
+                continue
+            else:
+                lb = label_deviation_lb(self.man, element, label, adv_label) # if the gt label already dominant
+                if lb < 0:
+                    final_adv_labels[adv_label] = lb
+                else:
+                    continue
+        # print(final_adv_labels)  
+        sorted_adv = sorted(final_adv_labels.items(), key = lambda x:x[1], reverse=False)
+        # print(sorted_adv)
+        final_adv_labels = [adv[0] for adv in sorted_adv]
+        last_iter = 5
+        pruned_labels = []
+        # if(len(final_adv_labels) != 0):
+        #     # generate krelu constraints
+        #     P_allayer_ori, Phat_allayer_ori, smallp_allayer_ori, relu_groups_ori = self.generate_krelu_cons(self.man, element, self.nn, 'refinepoly')
+        #     while(len(final_adv_labels)>0):
+        #         if(last_iter > 2):
+        #             pending_num = 1
+        #         else:
+        #             pending_num = min(multi_prune, len(final_adv_labels))
+        #         print("Handle adv labels:", final_adv_labels[:pending_num])
+        #         solStatus, last_iter = self.eliminate_adv_labels(final_adv_labels[:pending_num], pending_num, ground_truth_label, pruned_labels, element, nlb, nub, IOIL_lbs, IOIL_ubs, P_allayer_ori, Phat_allayer_ori, smallp_allayer_ori, relu_groups_ori, output_size, onnx_path)
+        #         print("solStatus, last_iter are:", solStatus, last_iter)
+        #         if(solStatus == -1):
+        #             print("Falsified!")
+        #             break
+        #         elif(solStatus == 0):
+        #             print("Unknown")
+        #             break
+        #         elif(solStatus == 1):
+        #             print("Adv labels", final_adv_labels[:pending_num], "pruned")
+        #             for item in final_adv_labels[:pending_num]:
+        #                 pruned_labels.append(item)
+        #                 final_adv_labels.remove(item)
+        # else:
+        #     print("Verified")
+        # if(len(final_adv_labels) == 0):
+        #     print("Verified with pruning")
+        #     dominant_class = ground_truth_label
+
+        
+        # dump constraints and gurobi solved bounds to files
+        print("final_adv_labels", final_adv_labels)
+        P_allayer, Phat_allayer, smallp_allayer, relu_groups = self.generate_krelu_cons(self.man, element, self.nn, 'refinepoly', full_vars=True, use_wralu=use_wralu)
+        Hmatrix, dvector = self.obtain_output_cons_cddlib(final_adv_labels[:1], 1, ground_truth_label, [] ,self.man, element, len(self.nn.layertypes)-1)
+        # dump_solver_inputs(IOIL_lbs, IOIL_ubs, P_allayer, Phat_allayer, smallp_allayer, Hmatrix, dvector)
+        # solve gurobi bounds
+        start_list, var_list, model = build_gurobi_model(self.nn, self.nn.specLB, self.nn.specUB, nlb, nub, relu_groups, self.nn.numlayer, Hmatrix, dvector, output_size)
+        self.solve_neuron_bounds_gurobi(model, var_list, start_list, element, True, bounds_save_path)
+
+        ### ori_lbs, ori_ubs include the bounds of input neurons and ReLU UNSTABLE inputs
+        # ori_lbs, ori_ubs = [IOIL_lbs[0]], [IOIL_ubs[0]]
+        # for i in range(1, len(IOIL_lbs)):
+        #     row_lb, row_ub = IOIL_lbs[i], IOIL_ubs[i]
+        #     lb = [row_lb[j] for j in range(len(row_lb)) if row_lb[j] < 0 and row_ub[j] > 0]
+        #     ub = [row_ub[j] for j in range(len(row_lb)) if row_lb[j] < 0 and row_ub[j] > 0]   
+        #     ori_lbs.append(np.array(lb))
+        #     ori_ubs.append(np.array(ub))
+        # dump_tensors_to_file(ori_lbs, 'ori_lbs')
+        # dump_tensors_to_file(ori_ubs, 'ori_ubs')
+        
+        
+        '''
+        # testing of bound update function
+        print("first deeppoly")
+        self.obtain_output_bound(self.man, element, self.nn)
+        flat_lbs = np.asarray([item for sublist in IOIL_lbs for item in sublist], dtype=np.float64)
+        flat_ubs = np.asarray([item for sublist in IOIL_ubs for item in sublist], dtype=np.float64)
+        # stable_index = flat_lbs[784:] >= 0
+        # print("stable ones", np.count_nonzero(stable_index))
+        # stable_index = flat_ubs[784:] <= 0
+        # print("stable ones", np.count_nonzero(stable_index))
+        num_each_layer = [len(item) for item in IOIL_lbs]
+        clear_neurons_status(self.man, element)
+        print("after clearance")
+        self.obtain_output_bound(self.man, element, self.nn)
+        update_bounds_from_LPsolve(self.man, element, len(IOIL_lbs), num_each_layer, flat_lbs, flat_ubs)
+        print("after rerun")
+        self.obtain_output_bound(self.man, element, self.nn)
+        '''
+
+        elina_abstract0_free(self.man, element)
+        return dominant_class, nlb, nub, label_failed, x
+    
+    def solve_neuron_bounds_gurobi(self, model, var_list, start_list, element, full_vars = False, bounds_save_path: str = "dump.pkl"):
+        ### resolve input bounds
+        length = start_list[1]
+        print("input dimension is", length)
+        gurobi_lbs, gurobi_ubs = [], []
+        lbs, ubs = np.zeros(length, dtype = np.float64), np.zeros(length, dtype = np.float64)
+        for i in range(length):
+            obj = LinExpr()
+            obj += 1 * var_list[i]
+            model.setObjective(obj, GRB.MINIMIZE)
+            model.optimize()
+            lbs[i] = model.objbound
+
+            model.setObjective(obj, GRB.MAXIMIZE)
+            model.optimize()
+            ubs[i] = model.objbound
+        gurobi_lbs.append(lbs)
+        gurobi_ubs.append(ubs)
+
+        ### resolve intermediate layers that are RELU INPUTS
+        for i in range(1, len(start_list)):
+            layerno = i - 1
+            if self.nn.layertypes[layerno] in ['SkipCat']:
+                continue # do nothing
+            elif(self.nn.layertypes[layerno]=='ReLU'):
+                # handle the input of ReLU layer
+                input_layerno = layerno - 1
+                length = get_num_neurons_in_layer(self.man, element, input_layerno)
+                bounds = box_for_layer(self.man, element, input_layerno)
+                itv = [bounds[j] for j in range(length)]
+                lb = [x.contents.inf.contents.val.dbl for x in itv]
+                ub = [x.contents.sup.contents.val.dbl for x in itv]
+                unstable_index = [j for j in range(length) if lb[j] < 0 and ub[j] > 0]
+                elina_interval_array_free(bounds,length)
+                solve_neuron_count = length if full_vars else len(unstable_index)
+                lbs, ubs = np.zeros(solve_neuron_count, dtype = np.float64), np.zeros(solve_neuron_count, dtype = np.float64)
+                neuron_index = range(length) if full_vars else unstable_index
+                for index, j in enumerate(neuron_index):
+                    obj = LinExpr()
+                    obj += 1 * var_list[j+start_list[i-1]] # i-1 is the input layer index
+                    model.setObjective(obj, GRB.MINIMIZE)
+                    model.optimize()
+                    lbs[index] = model.objbound
+
+                    model.setObjective(obj, GRB.MAXIMIZE)
+                    model.optimize()
+                    ubs[index] = model.objbound
+                gurobi_lbs.append(lbs)
+                gurobi_ubs.append(ubs)
+            else:
+                continue
+
+        # Save bounds to file.
+        with open(bounds_save_path, 'wb') as file:
+            pickle.dump({
+                'gurobi_lbs': gurobi_lbs,
+                'gurobi_ubs': gurobi_ubs,
+            }, file)
+
+        return gurobi_lbs, gurobi_ubs
+        # print("solving status is", model.Status)
+        # print("solved optimized value is", model.objbound)
+
+    def obtain_curDP_bounds_and_update_IOIL(self, man, element, input_lbs, input_ubs):
+        nlb, nub = [], []
+        new_lbs, new_ubs = [input_lbs], [input_ubs]
+        for layerno, layertype in enumerate(self.nn.layertypes):
+            length = get_num_neurons_in_layer(man, element, layerno)
+            bounds = box_for_layer(self.man, element, layerno)
+            itv = [bounds[i] for i in range(length)]
+            lb = [x.contents.inf.contents.val.dbl for x in itv]
+            ub = [x.contents.sup.contents.val.dbl for x in itv]
+            if layertype == 'ReLU':
+                ### add up the last layer's bounds
+                new_lbs.append(np.array(nlb[-1]))
+                new_ubs.append(np.array(nub[-1]))
+            nlb.append(lb)
+            nub.append(ub)
+            elina_interval_array_free(bounds,length)
+        return nlb, nub, new_lbs, new_ubs
+
+    def eliminate_adv_labels(self, multi_label_list, num_multi, gt_label, pruned_labels, element, nlb_ori, nub_ori, IOIL_lbs, IOIL_ubs, P_allayer_ori, Phat_allayer_ori, smallp_allayer_ori, relu_groups_ori, output_num = 10, onnx_path = None, use_wralu=False):
+        # revert back to oringal deeppoly abstract domain
+        clear_neurons_status(self.man, element)
+        run_deeppoly(self.man, element)
+        P_allayer, Phat_allayer, smallp_allayer, relu_groups = P_allayer_ori, Phat_allayer_ori, smallp_allayer_ori, relu_groups_ori
+        Hmatrix, dvector = self.obtain_output_cons_cddlib(multi_label_list, num_multi, gt_label, pruned_labels, self.man, element, len(self.nn.layertypes)-1, output_num)
+        # uses GUROBI to check SAT
+        _, _, model = build_gurobi_model(self.nn, self.nn.specLB, self.nn.specUB, nlb_ori, nub_ori, relu_groups, self.nn.numlayer, Hmatrix, dvector, output_num)
+        # self.solve_neuron_bounds_gurobi(model, var_list, start_list, element)
+        # check SAT
+        model.optimize()
+        iter = 0
+        if(model.Status == 3):
+            return 1, iter # means verified
+        else:
+            # TODO call up the solving process and update IOIL_lbs, IOIL_ubs
+            while(model.Status != 3 and iter <= 5):
+                falsified = False
+                print("Start iter", iter)
+                # TODO 
+                torch_model = load_onnx_model(onnx_path)
+                len_unstable_vars = []
+                for i in range(1, len(IOIL_lbs)):
+                    len_unstable_vars.append(len([j for j in range(len(IOIL_lbs[i])) if IOIL_lbs[i][j] < 0 and IOIL_ubs[i][j] > 0]))
+                # print("len_unstable_vars for all intermediate layers before solving", len_unstable_vars)
+                # solver_inputs = SolverInputs(torch_model, gt_label, IOIL_lbs, IOIL_ubs, Hmatrix, dvector, P_allayer, Phat_allayer, smallp_allayer)
+                # is_falsified, IOIL_lbs, IOIL_ubs, solver = solve(
+                #                                         solver_inputs,
+                #                                         device=torch.device("cuda"),
+                #                                         return_solver=True,
+                #                                     )
+                len_unstable_vars = []
+                for i in range(1, len(IOIL_lbs)):
+                    len_unstable_vars.append(len([j for j in range(len(IOIL_lbs[i])) if IOIL_lbs[i][j] < 0 and IOIL_ubs[i][j] > 0]))
+                # print("len_unstable_vars for all intermediate layers after solving", len_unstable_vars)
+                if(falsified):
+                    return -1
+                flat_lbs = np.asarray([item for sublist in IOIL_lbs for item in sublist], dtype=np.float64)
+                flat_ubs = np.asarray([item for sublist in IOIL_ubs for item in sublist], dtype=np.float64)
+                num_each_layer = [len(item) for item in IOIL_lbs]
+                update_bounds_from_LPsolve(self.man, element, len(IOIL_lbs), num_each_layer, flat_lbs, flat_ubs)
+                P_allayer, Phat_allayer, smallp_allayer, relu_groups = self.generate_krelu_cons(self.man, element, self.nn, 'refinepoly', use_wralu=use_wralu)
+                # rerun deeppoly with new bounds will reduce other neurons as well, need to reformulate IOIL_lbs/ubs with current results
+                nlb, nub, IOIL_lbs, IOIL_ubs = self.obtain_curDP_bounds_and_update_IOIL(self.man, element, IOIL_lbs[0], IOIL_ubs[0])
+                _, _, model = build_gurobi_model(self.nn, IOIL_lbs[0], IOIL_ubs[0], nlb, nub, relu_groups, self.nn.numlayer, Hmatrix, dvector, output_num)
+                model.optimize()
+                print("End iter", iter)
+                iter += 1
+            if(model.Status == 3):
+                return 1, iter
+            else:
+                return 0, iter
+
+    def obtain_output_cons_cddlib(self, multi_label_list, num_multi, gt_label, pruned_labels, man, element, output_index, output_num = 10):
+        # obtain input Octagon for this case
+        pruned_num = len(pruned_labels)
+        fullvar = [gt_label]
+        if(num_multi == 1):
+            Hmatrix, dvector = np.zeros((1+pruned_num, output_num), dtype = np.float64), np.zeros(1+pruned_num, dtype = np.float64)
+            Hmatrix[0][gt_label], Hmatrix[0][multi_label_list] = 1, -1
+            length = 1
+        else:
+            fullvar.extend(multi_label_list)
+            coeffs_list = []
+            print(fullvar)
+            size = 3**(num_multi+1) - 1
+            linexpr0 = elina_linexpr0_array_alloc(size)
+            for coeffs in itertools.product([-1, 0, 1], repeat=num_multi+1):
+                if all(c == 0 for c in coeffs):
+                    continue
+                else:
+                    coeffs_list.append(coeffs)
+            for i, coeffs in enumerate(coeffs_list):
+                linexpr0[i] = generate_linexpr0(0, fullvar, coeffs)
+            upper_bound = get_upper_bound_for_linexpr0(man, element, linexpr0, size, output_index)
+            '''For index i, we have constraint linexpr0[i] (which is fullvar*coeffs) <= upper_bound[i]'''
+            # for i, coeffs in enumerate(coeffs_list):
+            #     print("coeff is", coeffs, ";", 'ubound is', upper_bound[i])
+
+            inputM = []
+            for i, coeffs in enumerate(coeffs_list):
+                inputM.append([upper_bound[i]]+[-c for c in coeffs])
+            # InitM = cdd.Matrix(inputM, number_type = 'float')
+            InitM = cdd.Matrix(inputM, number_type = 'fraction')
+            InitM.rep_type = cdd.RepType.INEQUALITY
+            merge_Vlist = []
+            for i in range(num_multi):
+                M = InitM.copy()
+                new = [0, -1] + [1 if x==i else 0 for x in range(num_multi)]
+                M.extend([new])
+                poly = cdd.Polyhedron(M)
+                # convert to V representation
+                ext = poly.get_generators()
+                for j in range(ext.row_size):
+                    row = ext.__getitem__(j)
+                    if(row[0] == 0):
+                        break
+                    else:
+                        merge_Vlist.append(row)
+            # collect all vertex and reduce redundance
+            # VMatrix = cdd.Matrix(merge_Vlist, number_type = 'float')
+            VMatrix = cdd.Matrix(merge_Vlist, number_type = 'fraction')
+            VMatrix.rep_type = cdd.RepType.GENERATOR
+            res = VMatrix.canonicalize() # this will directly eliminate those duplicate vertex
+            finalPoly = cdd.Polyhedron(VMatrix)
+            inequs = finalPoly.get_inequalities()
+            # print(inequs)
+            # print(inequs.NumberType)
+            # the total number of output constraints
+            length = inequs.row_size 
+            total_len = length + len(pruned_labels)
+            Hmatrix, dvector = np.zeros((total_len, output_num), dtype = np.float64), np.zeros(total_len, dtype = np.float64)
+            for j in range(length):
+                row = inequs.__getitem__(j)
+                dvector[j] = -row[0]
+                # print("row is",row)
+                Hmatrix[j][fullvar] = [-c for c in row[1:]]
+        # print(dvector)
+        # print(Hmatrix)
+        for j in range(pruned_num):
+            dvector[j+length] = 0
+            Hmatrix[j+length][gt_label] = -1
+            Hmatrix[j+length][pruned_labels[j]] = 1
+        # dump into file
+        # dump_tensors_to_file([Hmatrix], 'Hmatrix')
+        # dump_tensors_to_file([dvector], 'dvector')
+        # print(Hmatrix, dvector)
+        return Hmatrix, dvector
+
+    def index_grouping(self, grouplen, K):
+        sparsed_combs = []
+        i = 0
+        if(K==3):
+            while(i+2 < grouplen):
+                sparsed_combs.append([i, i+1, i+2])
+                i = i + 2
+        return sparsed_combs
+    
+    def relu_grouping(self, length, lb, ub, K=3, s=-2):
+        assert length == len(lb) == len(ub)
+
+        all_vars = [i for i in range(length) if lb[i] < 0 < ub[i]]
+        areas = {var: -lb[var] * ub[var] for var in all_vars}
+        unstable_vars = all_vars
+        assert len(all_vars) == len(areas)
+        sparse_n = config.sparse_n
+        cutoff = 0.05
+        # Sort vars by descending area
+        all_vars = sorted(all_vars, key=lambda var: -areas[var])
+
+        vars_above_cutoff = [i for i in all_vars if areas[i] >= cutoff]
+        n_vars_above_cutoff = len(vars_above_cutoff)
+
+        kact_args = []
+        print("len(vars_above_cutoff)", len(vars_above_cutoff))
+        if len(vars_above_cutoff) >= K and config.sparse_n >= K:
+            grouplen = min(sparse_n, len(vars_above_cutoff))
+            # print(grouplen)
+            group = vars_above_cutoff[:grouplen]
+            vars_above_cutoff = vars_above_cutoff[grouplen:]
+            if grouplen <= K:
+                kact_args.append(group)
+            elif K>2:
+                # sparsed_combs = generate_sparse_cover(grouplen, K, s=s)
+                sparsed_combs = self.index_grouping(grouplen, K)
+                for comb in sparsed_combs:
+                    kact_args.append(tuple([group[i] for i in comb]))
+            elif K==2:
+                raise RuntimeError("K=2 is not supported")
+
+        # Also just apply 1-relu for every var.
+        # for var in all_vars:
+        #     kact_args.append([var])
+
+        # print("krelu: n", config.sparse_n,
+        #     "split_zero", len(all_vars),
+        #     "after cutoff", n_vars_above_cutoff,
+        #     "number of args", len(kact_args))
+        # print("number of args", len(kact_args))
+        return kact_args, unstable_vars
+
+    def generate_krelu_cons(self, man, element, nn, domain, K=3, s=-2, approx=True, act ='ReLU', full_vars = False, use_wralu = False):
+        # obtain krelu constraints from PRIMA feature
+        P_allayer_list = []
+        Phat_allayer_list = []
+        smallp_allayer_list = []
+        groupNum_each_layer = []
+        relu_groups = []
+        act_layer_indexes = [i for i,x in enumerate(nn.layertypes) if x==act]
+        for _, act_layer in enumerate(act_layer_indexes): # handle each activation layer
+            layerno = act_layer - 1  # get the pre-activation
+            length = get_num_neurons_in_layer(man, element, layerno)
+            bounds = box_for_layer(self.man, element, layerno)
+            itv = [bounds[i] for i in range(length)]
+            nlb = [x.contents.inf.contents.val.dbl for x in itv]
+            nub = [x.contents.sup.contents.val.dbl for x in itv]
+            elina_interval_array_free(bounds,length)
+            lbi = np.asarray(nlb, dtype=np.double)
+            ubi = np.asarray(nub, dtype=np.double)
+            kact_args, unstable_vars = self.relu_grouping(length, lbi, ubi, K=K, s=s)
+            # print("unstable_vars from prima", len(unstable_vars))
+            if(len(kact_args) >= 1):
+                # generate krelu constraints if we have relu group
+                tdim = ElinaDim(length)
+                KAct.man = man
+                KAct.element = element
+                KAct.tdim = tdim
+                KAct.length = length
+                KAct.layerno = layerno
+                KAct.offset = 0
+                KAct.domain = domain
+                KAct.type = act
+                total_size = 0    
+                for varsid in kact_args:
+                    size = 3**len(varsid) - 1
+                    total_size = total_size + size
+                linexpr0 = elina_linexpr0_array_alloc(total_size)
+                i = 0
+                # generate input Octagon
+                for varsid in kact_args:
+                    for coeffs in itertools.product([-1, 0, 1], repeat=len(varsid)):
+                        if all(c == 0 for c in coeffs):
+                            continue
+                        linexpr0[i] = generate_linexpr0(0, varsid, coeffs)
+                        i = i + 1
+                upper_bound = get_upper_bound_for_linexpr0(man,element,linexpr0, total_size, layerno)
+                i=0
+                input_hrep_array, lb_array, ub_array = [], [], []
+                for varsid in kact_args:
+                    input_hrep = []
+                    for coeffs in itertools.product([-1, 0, 1], repeat=len(varsid)):
+                        if all(c == 0 for c in coeffs):
+                            continue
+                        input_hrep.append([upper_bound[i]] + [-c for c in coeffs])
+                        i = i + 1
+                    input_hrep_array.append(input_hrep)
+                    lb_array.append([lbi[varid] for varid in varsid])
+                    ub_array.append([ubi[varid] for varid in varsid])
+                # call function and obtain krelu constraints
+                with multiprocessing.Pool(config.numproc) as pool:
+                    num_inputs = len(input_hrep_array)
+                    kact_results = pool.starmap(make_kactivation_obj, zip(input_hrep_array, lb_array, ub_array, [approx] * num_inputs, [use_wralu] * num_inputs))
+                relu_groups.append(kact_results)
+                gid = 0
+                cons_count = 0
+                for inst in kact_results:
+                    varsid = kact_args[gid]
+                    inst.varsid = varsid
+                    gid += 1
+                    cons_count += len(inst.cons)
+                # declare P, Phat and small p
+                if(full_vars):
+                    Pmatrix, Phat, smallp = np.zeros((cons_count, length), dtype = np.float64), np.zeros((cons_count, length), dtype = np.float64), np.zeros(cons_count, dtype = np.float64)
+                else:
+                    unstable_count = len(unstable_vars)
+                    Pmatrix, Phat, smallp = np.zeros((cons_count, unstable_count), dtype = np.float64), np.zeros((cons_count, unstable_count), dtype = np.float64), np.zeros(cons_count, dtype = np.float64)
+                    dictionary = dict(zip(unstable_vars, range(unstable_count)))
+                    # print(dictionary)
+                # assign elements in the matrix
+                row_ptr = 0
+                for inst in kact_results:
+                    index_list = list(inst.varsid)
+                    k = len(index_list)
+                    if(full_vars == False):
+                        index_list = [dictionary[varid] for varid in index_list]
+                    for row in inst.cons:
+                        smallp[row_ptr] = row[0]
+                        Pmatrix[row_ptr][index_list] = -row[1: 1+k]
+                        Phat[row_ptr][index_list] = -row[k+1: 1+2*k]
+                        row_ptr+=1    
+                P_allayer_list.append(Pmatrix)
+                Phat_allayer_list.append(Phat)
+                smallp_allayer_list.append(smallp)
+            else:
+                num_unstable = len(unstable_vars)
+                P_allayer_list.append(np.zeros((1, num_unstable)))
+                Phat_allayer_list.append(np.zeros((1, num_unstable)))
+                smallp_allayer_list.append(np.zeros((1,)))
+                relu_groups.append(None)
+            # record the number of 3-relu group per layer
+            groupNum_each_layer.append(len(kact_args))
+            # print("constriant number is", row_ptr)
+
+        # check the data type
+        # for i in range(len(P_allayer_list)):
+        #     if(P_allayer_list[i] is not None):
+        #         print("shape checking", P_allayer_list[i].shape, Phat_allayer_list[i].shape, smallp_allayer_list[i].shape)
+        #     else:
+        #         print("No KReLU for ", i, "th ReLU layer")
+        # export the matrix in dump.py
+        # dump_tensors_to_file(P_allayer_list, 'Pall')
+        # dump_tensors_to_file(Phat_allayer_list, 'Phatall')
+        # dump_tensors_to_file(smallp_allayer_list, 'smallpall')
+        # print(groupNum_each_layer)
+        return P_allayer_list, Phat_allayer_list, smallp_allayer_list, relu_groups
+          

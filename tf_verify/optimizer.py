@@ -19,7 +19,7 @@ from deepzono_nodes import *
 from deeppoly_nodes import *
 # if config.domain=='gpupoly' or config.domain=='refinegpupoly':
 try:
-    from gpupoly import Network
+    # from gpupoly import Network
     GPU_FLAG = True
 except:
     GPU_FLAG = False

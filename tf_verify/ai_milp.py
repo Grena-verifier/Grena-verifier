@@ -316,19 +316,20 @@ def handle_affine(model,var_list,counter,weights,biases, lbi, ubi):
 
     # output of matmult
     for j in range(num_neurons_affine):
+        # neuron declaration and neuron bounds
         var_name = "x" + str(start+j)
         var = model.addVar(vtype=GRB.CONTINUOUS, lb=lbi[j], ub=ubi[j], name=var_name)
         var_list.append(var)
 
     for j in range(num_neurons_affine):
-        num_in_neurons = len(weights[j])
+        num_in_neurons = len(weights[j]) # input neuron number
 
-        expr = LinExpr()
-        expr += -1*var_list[start+j]
+        expr = LinExpr() # nill exp
+        expr += -1*var_list[start+j]  # - cur_node
         # matmult constraints
         for k in range(num_in_neurons):
-            expr.addTerms(weights[j][k], var_list[counter+k])
-        expr.addConstant(biases[j])
+            expr.addTerms(weights[j][k], var_list[counter+k]) # add term weights[j][k]*input_var
+        expr.addConstant(biases[j]) # -y + coeff*x + b = 0
         model.addConstr(expr, GRB.EQUAL, 0)
     return start
 
@@ -358,7 +359,7 @@ def handle_residual(model, var_list, branch1_counter, branch2_counter, lbi, ubi)
 
 
 def _add_kactivation_constraints(model, var_list, constraint_groups, x_counter, y_counter):
-    #print("start here ")
+    #print("x_counter, y_counter is affine var start and relu var start")
     for inst in constraint_groups:
         for row in inst.cons:
             k = len(inst.varsid)
@@ -456,6 +457,43 @@ def handle_relu(model,var_list, affine_counter, num_neurons, lbi, ubi, relu_grou
 
     return relu_counter
 
+def encode_relu_with_Krelu(model,var_list, affine_counter, num_neurons, lbi, ubi, relu_groupsi):
+    start = len(var_list)
+    relu_counter = start
+    relax_encode_idx = np.arange(num_neurons)
+
+    # relu output variables
+    for j in range(num_neurons):
+        var_name = "x" + str(relu_counter+j)
+        upper_bound = max(0.0, ubi[j])
+        # relu neuron interval
+        var = model.addVar(vtype=GRB.CONTINUOUS, lb=0.0, ub=upper_bound,  name=var_name)
+        var_list.append(var)
+
+    if len(relax_encode_idx) > 0:
+        for j in relax_encode_idx:
+            if ubi[j] <= 0: # relu stably deactivated
+                expr = var_list[relu_counter+j]
+                model.addConstr(expr, GRB.EQUAL, 0)
+            elif lbi[j] >= 0: # relu stably activated
+                expr = var_list[relu_counter+j] - var_list[affine_counter+j]
+                model.addConstr(expr, GRB.EQUAL, 0)
+            else:
+                assert (lbi[j] < 0) and (ubi[j] > 0), "Unstable ReLU classifed to the wrong group!!!!"
+                # unstable without KRelu 
+                expr = -ubi[j] * var_list[affine_counter+j]
+                expr += (ubi[j] - lbi[j]) * var_list[relu_counter+j]
+                expr += lbi[j] * ubi[j]
+                model.addConstr(expr, GRB.LESS_EQUAL, 0) # upper constraint
+
+                # 0 lower constraint is included in var concrete bounds already, add on identity lower constraint
+                expr = var_list[relu_counter+j] - var_list[affine_counter+j]
+                model.addConstr(expr, GRB.GREATER_EQUAL, 0) # relu >= relu_input
+
+    # add on with krelu constraints if any
+    if len(relu_groupsi) > 0:
+        _add_kactivation_constraints(model, var_list, relu_groupsi, affine_counter, relu_counter)
+    return relu_counter
 
 
 def handle_sign(model,var_list, affine_counter, num_neurons, lbi, ubi):
@@ -532,7 +570,7 @@ def create_model(nn, LB_N0, UB_N0, nlb, nub, relu_groups, numlayer, use_milp, is
 
     milp_activation_layers = np.nonzero([l in ["ReLU", "Maxpool"] for l in nn.layertypes])[0]
 
-    ### Determine whcich layers, if any to encode with MILP
+    ### Determine which layers, if any to encode with MILP
     if partial_milp < 0:
         partial_milp = len(milp_activation_layers)
     first_milp_layer = len(nn.layertypes) if partial_milp == 0 else milp_activation_layers[-min(partial_milp, len(milp_activation_layers))]
@@ -681,6 +719,103 @@ def create_model(nn, LB_N0, UB_N0, nlb, nub, relu_groups, numlayer, use_milp, is
     np.set_printoptions(threshold=sys.maxsize)
     #print("NLB ", nlb[-4], len(nlb[-4]))
     return counter, var_list, model
+
+def build_gurobi_model(nn, LB_N0, UB_N0, nlb, nub, relu_groups, numlayer, Hmatrix, dvector, output_size, is_nchw=False):
+    '''
+    LB_N0, UB_N0: the current input space
+    nlb, nub: the full list of intermediate layer bounds
+    '''
+    model = Model("SATchecker")
+    model.setParam("OutputFlag",0) # disables console logging
+    model.setParam(GRB.Param.FeasibilityTol, 2e-5)
+
+    ### the number of input pixels
+    num_pixels = len(LB_N0)
+
+    ### Set layer counters to 0, later used to access layer resources
+    ffn_counter = 0
+    conv_counter = 0
+    activation_counter = 0
+    pool_counter = 0
+    pad_counter = 0
+    residual_counter = 0
+    var_list = []
+    counter = 0
+
+    ### Encode inputs, from the input box
+    for i in range(num_pixels):
+        var_name = "x" + str(i)
+        var = model.addVar(vtype=GRB.CONTINUOUS, lb = LB_N0[i], ub=UB_N0[i], name=var_name)
+        var_list.append(var) # put it in variable list to access later
+
+    start_counter = []
+    start_counter.append(counter)
+    ### Add layers to model one by one
+    for i in range(numlayer):
+        if nn.layertypes[i] in ['SkipCat']:
+            continue # do nothing
+        elif nn.layertypes[i] in ['FC']:
+            weights = nn.weights[ffn_counter]
+            biases = nn.biases[ffn_counter+conv_counter]
+            index = nn.predecessors[i+1][0]
+            # print("index ", index, start_counter,i, len(relu_groups))
+            counter = start_counter[index] # the starting point of previous layer
+            counter = handle_affine(model, var_list, counter, weights, biases, nlb[i], nub[i]) # update this counter to current layer start point
+            ffn_counter += 1
+            start_counter.append(counter)
+
+        elif(nn.layertypes[i]=='ReLU'):
+            ### ReLU obtain the info from its input layer
+            index = nn.predecessors[i+1][0]
+            krelu_group = relu_groups[activation_counter]
+            if krelu_group is None:
+                counter = encode_relu_with_Krelu(model, var_list, counter, len(nlb[i]), nlb[index-1], nub[index-1], [])
+            else:
+                counter = encode_relu_with_Krelu(model, var_list, counter, len(nlb[i]), nlb[index-1], nub[index-1], krelu_group)
+            activation_counter += 1
+            start_counter.append(counter)
+
+        elif nn.layertypes[i] in ['Conv']:
+            filters = nn.filters[conv_counter]
+            biases = nn.biases[ffn_counter + conv_counter]
+            filter_size = nn.filter_size[conv_counter]
+            out_shape = nn.out_shapes[conv_counter + pool_counter + pad_counter]
+            padding = nn.padding[conv_counter + pool_counter + pad_counter]
+            strides = nn.strides[conv_counter + pool_counter]
+            input_shape = nn.input_shape[conv_counter + pool_counter + pad_counter]
+            index = nn.predecessors[i+1][0]
+            counter = start_counter[index]
+            counter = handle_conv(model, var_list, counter, filters, biases, filter_size, input_shape, strides,
+                                  out_shape, padding[0], padding[1], padding[2], padding[3], nlb[i], nub[i], False, is_nchw=is_nchw)
+            start_counter.append(counter)
+            conv_counter += 1
+        elif nn.layertypes[i] in ['Resadd']:
+            index1 = nn.predecessors[i+1][0]
+            index2 = nn.predecessors[i+1][1]
+            counter1 = start_counter[index1]
+            counter2 = start_counter[index2]
+            counter = handle_residual(model, var_list, counter1, counter2, nlb[i], nub[i])
+            start_counter.append(counter)
+            residual_counter += 1
+        else:
+            assert 0, 'layertype:' + nn.layertypes[i] + 'not supported for refine'
+
+    assert activation_counter == len(relu_groups), "Mismatch for activation layer number!!!!"
+    # model.write("model_refinepoly.lp")
+    np.set_printoptions(threshold=sys.maxsize)
+    
+    ### add output constraints
+    out_vars = var_list[-output_size:]
+    # print("out_vars", out_vars)
+    # print(dvector.shape[0])
+    for j in range(dvector.shape[0]):
+        expr = LinExpr() # nill exp
+        for k in range(output_size):
+            expr.addTerms(Hmatrix[j][k], out_vars[k]) # add term w+y_i
+        expr.addConstant(dvector[j])
+        model.addConstr(expr, GRB.LESS_EQUAL, 0)
+        
+    return start_counter, var_list, model
 
 
 class Cache:

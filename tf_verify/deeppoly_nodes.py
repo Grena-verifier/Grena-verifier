@@ -239,7 +239,16 @@ class DeeppolyFCNode(DeeppolyNode):
         output : ElinaAbstract0Ptr
             abstract element after the transformer 
         """
-        handle_fully_connected_layer(man, element, *self.get_arguments())
+        # print("shape of self.weight", self.weights.shape)
+        # TODO to check sparsity in here and if sparse, directly invoke handle_sparse_layer
+        total_num = np.prod(self.weights.shape)
+        nonzero_num = np.count_nonzero(self.weights)
+        sparsity = 1.0 - (nonzero_num / float(total_num))
+        if(sparsity > 0.5):
+            # print("sparse layer")
+            handle_sparse_layer(man, element, *self.get_arguments())
+        else:
+            handle_fully_connected_layer(man, element, *self.get_arguments())
         calc_bounds(man, element, nn, nlb, nub, relu_groups, is_refine_layer=True, use_krelu=refine)
         nn.ffn_counter+=1
         if testing:

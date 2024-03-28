@@ -102,6 +102,7 @@ def parse_vnn_lib_prop(file_path):
         if line.startswith("(assert"):
             match = re.match("\(assert \(([>,<,=]+) (.*)\)\)", line)
             if match is None:
+                print(line)
                 assert False, line
             else:
                 spec_relation = match.group(1)

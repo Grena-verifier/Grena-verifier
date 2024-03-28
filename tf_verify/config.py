@@ -28,6 +28,12 @@ class config:
 
     # General options
     netname = None # the network name, the extension can be only .pyt, .tf and .meta
+    bench_prop = None # the csv files recording a set of properties
+    imageid = 0
+    ARENA = False # flag to enable ARENA refinement
+    multi_prune = 1 # by default, only prune one label at a time
+    is_normalized = False # flag specifying whether the network has normalization layer
+    property = None # the vnnlib file name, the extension can only be .vnnlib
     epsilon = 0 # the epsilon for L_infinity perturbation
     zonotope = None # file to specify the zonotope matrix
     domain = None # the domain name can be either deepzono, refinezono, deeppoly or refinepoly
@@ -85,3 +91,5 @@ class config:
     gamma = float('inf')
     quant_step = None
 
+    bounds_save_path: str = "dump.pkl" # Save file path for Gurobi-solved bounds.
+    use_wralu: bool = False
