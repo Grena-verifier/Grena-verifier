@@ -35,7 +35,7 @@ def train(solver: Solver, config: TrainingConfig = TrainingConfig()) -> bool:
         threshold=config.reduce_lr_threshold,
         min_lr=config.min_lr,
     )
-    early_stop_handler = EarlyStopHandler(config.stop_patience, config.stop_threshold)
+    early_stop_handler = EarlyStopHandler(config.min_lr)
 
     theta_list: List[Tensor] = []
 
@@ -55,11 +55,6 @@ def train(solver: Solver, config: TrainingConfig = TrainingConfig()) -> bool:
 
         loss = -max_objective.sum()
         loss_float = loss.item()
-
-        if early_stop_handler.is_early_stopped(loss_float):
-            pbar.set_description(f"Training stopped at epoch {epoch}, Loss: {loss_float}")
-            pbar.close()
-            break
 
         # Backward pass and optimization.
         optimizer.zero_grad()
@@ -81,6 +76,12 @@ def train(solver: Solver, config: TrainingConfig = TrainingConfig()) -> bool:
         current_lr = optimizer.param_groups[0]["lr"]
         pbar.set_postfix({"Loss": loss_float, "LR": current_lr})
         pbar.update()
+
+        if early_stop_handler.is_early_stopped(current_lr):
+            pbar.set_description(f"Training stopped at epoch {epoch}, Loss: {loss_float}")
+            pbar.close()
+            break
+
         epoch += 1
 
     if (
@@ -98,7 +99,7 @@ def is_falsified_by_concrete_inputs(solver: Solver, theta_list: List[Tensor]) ->
     via the adversarial-check model (ie. training should be stopped).
     """
     thetas = torch.cat(theta_list, dim=0)
-    L_0: Tensor = solver.sequential[0].L.detach()
-    U_0: Tensor = solver.sequential[0].U.detach()
+    L_0: Tensor = solver.layers.solvable_layers[0].L.detach()
+    U_0: Tensor = solver.layers.solvable_layers[0].U.detach()
     concrete_inputs: Tensor = torch.where(thetas >= 0, L_0, U_0)
     return solver.adv_check_model.forward(concrete_inputs)

@@ -1,5 +1,3 @@
-import math
-from functools import reduce
 from typing import Tuple
 
 import torch
@@ -7,21 +5,26 @@ from torch import nn
 
 from .class_definitions import (
     Bias,
-    Conv2dFlattenBias,
-    ConvTranspose2dFlattenNoBias,
+    Conv2dBias,
+    InverseBatchNorm2d,
     LinearBias,
     UnaryForward,
 )
 
 
-def transpose_layer(layer: nn.Module, layer_out_features: int) -> Tuple[UnaryForward, Bias, int]:
+def transpose_layer(
+    layer: nn.Module,
+    input_shape: Tuple[int, ...],
+    output_shape: Tuple[int, ...],
+) -> Tuple[UnaryForward, Bias]:
     """Convert `layer` to a transposed of itself without bias, and return it
     along with a `Bias` module that performs the `V_i^T.b` operation, and the
     output features of the tranposed layer.
 
     Args:
         layer (nn.Module): Layer to transpose.
-        layer_out_features (int): Output features of `layer`.
+        input_shape (int): Input shape of `layer`.
+        output_shape (int): Output shape of `layer`.
 
     Returns:
         The tranposed layer, and the corresponding `Bias` module.
@@ -29,11 +32,15 @@ def transpose_layer(layer: nn.Module, layer_out_features: int) -> Tuple[UnaryFor
     if isinstance(layer, nn.Linear):
         return transpose_linear(layer)
     if isinstance(layer, nn.Conv2d):
-        return transpose_conv2d(layer, layer_out_features)
+        return transpose_conv2d(layer, input_shape[1:], output_shape[1:])
+    if isinstance(layer, nn.Flatten):
+        return transpose_flatten(layer, input_shape)
+    if isinstance(layer, nn.BatchNorm2d):
+        return tranpose_batch_norm_2d(layer)
     raise NotImplementedError()
 
 
-def transpose_linear(linear: nn.Linear) -> Tuple[nn.Linear, Bias, int]:
+def transpose_linear(linear: nn.Linear) -> Tuple[nn.Linear, Bias]:
     weight = linear.weight
     bias = linear.bias if linear.bias is not None else torch.zeros((weight.size(0),))
 
@@ -45,29 +52,73 @@ def transpose_linear(linear: nn.Linear) -> Tuple[nn.Linear, Bias, int]:
     )
     transposed_linear.weight = nn.Parameter(weight.t().clone().detach(), requires_grad=False)
 
-    return transposed_linear, LinearBias(bias.clone().detach()), linear.in_features
+    return transposed_linear, LinearBias(bias.clone().detach())
 
 
-def transpose_conv2d(conv2d: nn.Conv2d, conv2d_total_output: int) -> Tuple[UnaryForward, Bias, int]:
-    num_channels = conv2d.out_channels
+def transpose_conv2d(
+    conv2d: nn.Conv2d,
+    conv2d_input_shape: Tuple[int, ...],
+    conv2d_output_shape: Tuple[int, ...],
+) -> Tuple[nn.ConvTranspose2d, Bias]:
+    weight = conv2d.weight
+    assert not isinstance(conv2d.padding, str)
 
-    # Assume that `height == width` for the CNN input.
-    H_W = int(math.sqrt(conv2d_total_output / num_channels))
-    conv2d_output_shape = (num_channels, H_W, H_W)
+    # Calculate the expected output shape of ConvTranspose2d without output_padding
+    expected_height = (
+        (conv2d_output_shape[1] - 1) * conv2d.stride[0]
+        - 2 * conv2d.padding[0]
+        + conv2d.kernel_size[0]
+    )
+    expected_width = (
+        (conv2d_output_shape[2] - 1) * conv2d.stride[1]
+        - 2 * conv2d.padding[1]
+        + conv2d.kernel_size[1]
+    )
 
+    # Calculate output_padding needed to match the input shape of the original Conv2d
+    output_padding_height = conv2d_input_shape[1] - expected_height
+    output_padding_width = conv2d_input_shape[2] - expected_width
+    output_padding = (output_padding_height, output_padding_width)
+
+    # Create a new ConvTranspose2d layer with same parameters and without bias
+    transposed_conv2d = nn.ConvTranspose2d(
+        in_channels=conv2d.in_channels,
+        out_channels=conv2d.out_channels,
+        kernel_size=conv2d.kernel_size,  # type: ignore
+        stride=conv2d.stride,  # type: ignore
+        padding=conv2d.padding,  # type: ignore
+        dilation=conv2d.dilation,  # type: ignore
+        groups=conv2d.groups,
+        output_padding=output_padding,
+        bias=False,
+    )
+    transposed_conv2d.weight = nn.Parameter(weight.clone().detach(), requires_grad=False)
     bias = (
         conv2d.bias.clone().detach()
         if conv2d.bias is not None
         else torch.zeros((conv2d.out_channels,))
     )
 
-    output_shape = compute_conv2d_input_shape(conv2d, conv2d_output_shape)
-    output_num_elements = reduce(lambda x, y: x * y, output_shape)
     return (
-        ConvTranspose2dFlattenNoBias(conv2d, conv2d_output_shape),
-        Conv2dFlattenBias(bias),
-        output_num_elements,
+        transposed_conv2d,
+        Conv2dBias(bias),
     )
+
+
+def transpose_flatten(
+    flatten: nn.Flatten,
+    input_shape: Tuple[int, ...],
+) -> Tuple[nn.Unflatten, Bias]:
+    start_dim = (
+        flatten.start_dim if flatten.start_dim >= 0 else len(input_shape) + flatten.start_dim
+    )
+    end_dim = flatten.end_dim if flatten.end_dim >= 0 else len(input_shape) + flatten.end_dim
+    unflattened_size = input_shape[start_dim : end_dim + 1]
+    return nn.Unflatten(start_dim, unflattened_size), nn.Identity()  # type: ignore
+
+
+def tranpose_batch_norm_2d(batch_norm_2d: nn.BatchNorm2d) -> Tuple[InverseBatchNorm2d, Bias]:
+    return InverseBatchNorm2d(batch_norm_2d), LinearBias(batch_norm_2d.bias.clone().detach())
 
 
 def compute_conv2d_input_shape(

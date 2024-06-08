@@ -1,25 +1,28 @@
 from abc import ABC, abstractmethod
 
+import torch
 from torch import Tensor, nn
 
 
-class SolverLayer(ABC, nn.Module):
-    """Abstract base class for all solver layers.
+class Solvable_SL(ABC, nn.Module):
+    """Abstract base class for all solver layers that are "solvable"
+    (ie. input layer + ReLU layers).
 
-    Contains all the constructor-parameters/methods/properties that's in common
-    between all layers.
+    Contains the common constructor-parameters/methods/properties.
     """
 
     def __init__(
         self,
         L: Tensor,
         U: Tensor,
-        stably_act_mask: Tensor,
-        stably_deact_mask: Tensor,
-        unstable_mask: Tensor,
         C: Tensor,
     ) -> None:
         super().__init__()
+        stably_act_mask = L >= 0
+        stably_deact_mask = U <= 0
+        unstable_mask = (L < 0) & (U > 0)
+        assert torch.all((stably_act_mask + stably_deact_mask + unstable_mask) == 1)
+
         self.L: Tensor
         self.U: Tensor
         self.stably_act_mask: Tensor
@@ -43,9 +46,9 @@ class SolverLayer(ABC, nn.Module):
         return self.C.size(0)
 
     @property
-    def num_neurons(self) -> int:
+    def layer_shape(self) -> torch.Size:
         """The number of neurons this layer has."""
-        return len(self.L)
+        return self.L.shape
 
     @property
     def num_unstable(self) -> int:
