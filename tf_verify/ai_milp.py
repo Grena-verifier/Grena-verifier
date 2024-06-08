@@ -758,7 +758,6 @@ def build_gurobi_model(nn, LB_N0, UB_N0, nlb, nub, relu_groups, numlayer, Hmatri
             weights = nn.weights[ffn_counter]
             biases = nn.biases[ffn_counter+conv_counter]
             index = nn.predecessors[i+1][0]
-            # print("index ", index, start_counter,i, len(relu_groups))
             counter = start_counter[index] # the starting point of previous layer
             counter = handle_affine(model, var_list, counter, weights, biases, nlb[i], nub[i]) # update this counter to current layer start point
             ffn_counter += 1

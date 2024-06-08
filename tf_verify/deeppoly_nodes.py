@@ -294,7 +294,8 @@ class DeeppolyNonlinearity:
 
 
 class DeeppolyReluNode(DeeppolyNonlinearity):
-    def transformer(self, nn, man, element, nlb, nub, relu_groups, refine, timeout_lp, timeout_milp, use_default_heuristic, testing, K=3, s=-2, use_milp=False, approx=True):
+    def transformer(self, nn, man, element, nlb, nub, relu_groups, refine, timeout_lp, timeout_milp, use_default_heuristic, testing, K=3, s=-2, use_milp=False, approx=True,
+                    use_wralu: Union[None, Literal["sci", "sciplus", "sciall"]] = None):
         """
         transforms element with handle_relu_layer
         
@@ -314,7 +315,7 @@ class DeeppolyReluNode(DeeppolyNonlinearity):
         if refine:
             refine_activation_with_solver_bounds(nn, self, man, element, nlb, nub, relu_groups, timeout_lp,
                                                  timeout_milp, use_default_heuristic, 'deeppoly',
-                                                 K=K, s=s, use_milp=use_milp, approx=approx)
+                                                 K=K, s=s, use_milp=use_milp, approx=approx, use_wralu=use_wralu)
         else:
             handle_relu_layer(*self.get_arguments(man, element), use_default_heuristic)
         calc_bounds(man, element, nn, nlb, nub, relu_groups, is_refine_layer=True, use_krelu=False)

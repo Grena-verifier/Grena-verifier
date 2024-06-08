@@ -1475,7 +1475,7 @@ else:
                                                             use_milp=config.use_milp,
                                                             partial_milp=config.partial_milp,
                                                             max_milp_neurons=config.max_milp_neurons,
-                                                            approx=config.approx_k)
+                                                            approx=config.approx_k, use_wralu=config.use_wralu)
                     if is_verified:
                         print("img", i, "Verified", int(test[0]))
                         verified_images += 1

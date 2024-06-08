@@ -61,7 +61,8 @@ class ERAN:
                     output_constraints=None, lexpr_weights= None, lexpr_cst=None, lexpr_dim=None, uexpr_weights=None,
                     uexpr_cst=None, uexpr_dim=None, expr_size=0, testing = False,label=-1, prop = -1,
                     spatial_constraints=None, K=3, s=-2, timeout_final_lp=100, timeout_final_milp=100, use_milp=False,
-                    complete=False, terminate_on_failure=True, partial_milp=False, max_milp_neurons=30, approx_k=True):
+                    complete=False, terminate_on_failure=True, partial_milp=False, max_milp_neurons=30, approx_k=True,
+                    use_wralu: Union[None, Literal["sci", "sciplus", "sciall"]] = None):
         """
         This function runs the analysis with the provided model and session from the constructor, the box specified by specLB and specUB is used as input. Currently we have three domains, 'deepzono',      		'refinezono' and 'deeppoly'.
         
@@ -92,7 +93,8 @@ class ERAN:
                                 use_default_heuristic, label, prop, testing, K=K, s=s,
                                 timeout_final_lp=timeout_final_lp, timeout_final_milp=timeout_final_milp,
                                 use_milp=use_milp, complete=complete,
-                                partial_milp=partial_milp, max_milp_neurons=max_milp_neurons)
+                                partial_milp=partial_milp, max_milp_neurons=max_milp_neurons,
+                                use_wralu=use_wralu)
         elif domain == 'deeppoly' or domain == 'refinepoly':
             execute_list, output_info = self.optimizer.get_deeppoly(nn, specLB, specUB, lexpr_weights, lexpr_cst, lexpr_dim, uexpr_weights, uexpr_cst, uexpr_dim, expr_size, spatial_constraints)
             analyzer = Analyzer(execute_list, nn, domain, timeout_lp, timeout_milp, output_constraints,
@@ -100,7 +102,7 @@ class ERAN:
                                 timeout_final_lp=timeout_final_lp, timeout_final_milp=timeout_final_milp,
                                 use_milp=use_milp, complete=complete,
                                 partial_milp=partial_milp, max_milp_neurons=max_milp_neurons,
-                                approx_k=approx_k)
+                                approx_k=approx_k, use_wralu=use_wralu)
         # replacing this analyze with self-defined analyze_poly as zono domain not involved
         dominant_class, nlb, nub, failed_labels, x = analyzer.analyze(terminate_on_failure=terminate_on_failure)
         if terminate_on_failure:
@@ -116,8 +118,8 @@ class ERAN:
                     uexpr_cst=None, uexpr_dim=None, expr_size=0, testing = False,label=-1, prop = -1,
                     spatial_constraints=None, K=3, s=-2, timeout_final_lp=100, timeout_final_milp=100, use_milp=False,
                     complete=False, terminate_on_failure=True, partial_milp=False, max_milp_neurons=30, approx_k=True,
-                    IOIL_lbs = None, IOIL_ubs = None, ARENA=False, multi_prune=3, onnx_path = None,
-                    bounds_save_path: str = "dump.pkl", use_wralu=False):
+                    IOIL_lbs = None, IOIL_ubs = None, GRENA=False, multi_prune=3, onnx_path = None,
+                    bounds_save_path: str = "dump.pkl", use_wralu: Union[None, Literal["sci", "sciplus", "sciall"]] = None):
         """
         This function runs the analysis with the provided model and session from the constructor, the box specified by specLB and specUB is used as input. Currently we have three domains, 'deepzono',      		'refinezono' and 'deeppoly'.
         
@@ -149,8 +151,8 @@ class ERAN:
                                 timeout_final_lp=timeout_final_lp, timeout_final_milp=timeout_final_milp,
                                 use_milp=use_milp, complete=complete,
                                 partial_milp=partial_milp, max_milp_neurons=max_milp_neurons,
-                                approx_k=approx_k, ARENA=ARENA)
-        dominant_class, nlb, nub, failed_labels, x = analyzer.analyze_poly(terminate_on_failure=terminate_on_failure, ground_truth_label=label, IOIL_lbs=IOIL_lbs, IOIL_ubs=IOIL_ubs, multi_prune=multi_prune, onnx_path=onnx_path, bounds_save_path=bounds_save_path, use_wralu=use_wralu)
+                                approx_k=approx_k, GRENA=GRENA, use_wralu=use_wralu)
+        dominant_class, nlb, nub, failed_labels, x = analyzer.analyze_poly(terminate_on_failure=terminate_on_failure, ground_truth_label=label, IOIL_lbs=IOIL_lbs, IOIL_ubs=IOIL_ubs, multi_prune=multi_prune, onnx_path=onnx_path, bounds_save_path=bounds_save_path)
         if terminate_on_failure:
             failed_labels = None # rather return nothing than an incomplete list
             

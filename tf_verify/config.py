@@ -18,6 +18,7 @@
 import multiprocessing
 
 from enum import Enum
+from typing import Literal, Union
 
 class Device(Enum):
     CPU = 0
@@ -92,4 +93,4 @@ class config:
     quant_step = None
 
     bounds_save_path: str = "dump.pkl" # Save file path for Gurobi-solved bounds.
-    use_wralu: bool = False
+    use_wralu: Union[None, Literal["sci", "sciplus", "sciall"]] = None

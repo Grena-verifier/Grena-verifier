@@ -18,15 +18,17 @@
 import pickle
 from elina_abstract0 import *
 from elina_manager import *
+from fconv import generate_sparse_cover
 from deeppoly_nodes import *
 from deepzono_nodes import *
 from krelu import *
 from functools import reduce
 from ai_milp import milp_callback
-from typing import List
+from typing import List, Literal, Union
 from torch import Tensor, nn
 # from ml-part-time.src.compare_against_gurobi import compare_against_gurobi
 from ml_bound_solver.src.preprocessing.solver_inputs import SolverInputs
+from ml_bound_solver.src.preprocessing.preprocessing_utils import remove_first_n_modules
 from ml_bound_solver.src.solve import solve
 from ml_bound_solver.src.utils import load_onnx_model
 # from ml-part-time.src.utils import seed_everything
@@ -36,6 +38,7 @@ import torch
 import cdd
 import numpy as np
 import os.path
+import logging
 
 
 def dump_solver_inputs(
@@ -216,7 +219,8 @@ class layers:
 class Analyzer:
     def __init__(self, ir_list, nn, domain, timeout_lp, timeout_milp, output_constraints, use_default_heuristic, label,
                  prop, testing = False, K=3, s=-2, timeout_final_lp=100, timeout_final_milp=100, use_milp=False,
-                 complete=False, partial_milp=False, max_milp_neurons=30, approx_k=True, ARENA=False):
+                 complete=False, partial_milp=False, max_milp_neurons=30, approx_k=True, GRENA=False,
+                 use_wralu: Union[None, Literal["sci", "sciplus", "sciall"]] = None):
         """
         Arguments
         ---------
@@ -250,12 +254,13 @@ class Analyzer:
         self.label = label
         self.prop = prop
         self.complete = complete
-        self.ARENA = ARENA
+        self.GRENA = GRENA
         self.K=K
         self.s=s
         self.partial_milp=partial_milp
         self.max_milp_neurons=max_milp_neurons
         self.approx_k = approx_k
+        self.use_wralu = use_wralu
 
     def __del__(self):
         elina_manager_free(self.man)
@@ -276,7 +281,7 @@ class Analyzer:
                                                                   self.timeout_lp, self.timeout_milp,
                                                                   self.use_default_heuristic, self.testing,
                                                                   K=self.K, s=self.s, use_milp=self.use_milp,
-                                                                  approx=self.approx_k)
+                                                                  approx=self.approx_k, use_wralu=self.use_wralu)
             else:
                 element_test_bounds = self.ir_list[i].transformer(self.nn, self.man, element, nlb, nub,
                                                                   self.relu_groups, 'refine' in self.domain,
@@ -498,9 +503,9 @@ class Analyzer:
         elina_abstract0_free(self.man, element)
         return dominant_class, nlb, nub, label_failed, x
 
-    def obtain_output_bound(self, man, element, nn):
-        layerno = len(nn.layertypes) -1
-        length = get_num_neurons_in_layer(man, element, layerno)
+    def obtain_output_bound(self, element):
+        layerno = len(self.nn.layertypes) -1
+        length = get_num_neurons_in_layer(self.man, element, layerno)
         bounds = box_for_layer(self.man, element, layerno)
         itv = [bounds[i] for i in range(length)]
         nlb = [x.contents.inf.contents.val.dbl for x in itv]
@@ -521,7 +526,6 @@ class Analyzer:
         multi_prune=3,
         onnx_path = None,
         bounds_save_path: str = "dump.pkl",
-        use_wralu: bool = False
     ):
         """
         analyses the network with the given input
@@ -562,77 +566,100 @@ class Analyzer:
         sorted_adv = sorted(final_adv_labels.items(), key = lambda x:x[1], reverse=False)
         # print(sorted_adv)
         final_adv_labels = [adv[0] for adv in sorted_adv]
-        last_iter = 5
-        pruned_labels = []
-        # if(len(final_adv_labels) != 0):
-        #     # generate krelu constraints
-        #     P_allayer_ori, Phat_allayer_ori, smallp_allayer_ori, relu_groups_ori = self.generate_krelu_cons(self.man, element, self.nn, 'refinepoly')
-        #     while(len(final_adv_labels)>0):
-        #         if(last_iter > 2):
-        #             pending_num = 1
-        #         else:
-        #             pending_num = min(multi_prune, len(final_adv_labels))
-        #         print("Handle adv labels:", final_adv_labels[:pending_num])
-        #         solStatus, last_iter = self.eliminate_adv_labels(final_adv_labels[:pending_num], pending_num, ground_truth_label, pruned_labels, element, nlb, nub, IOIL_lbs, IOIL_ubs, P_allayer_ori, Phat_allayer_ori, smallp_allayer_ori, relu_groups_ori, output_size, onnx_path)
-        #         print("solStatus, last_iter are:", solStatus, last_iter)
-        #         if(solStatus == -1):
-        #             print("Falsified!")
-        #             break
-        #         elif(solStatus == 0):
-        #             print("Unknown")
-        #             break
-        #         elif(solStatus == 1):
-        #             print("Adv labels", final_adv_labels[:pending_num], "pruned")
-        #             for item in final_adv_labels[:pending_num]:
-        #                 pruned_labels.append(item)
-        #                 final_adv_labels.remove(item)
-        # else:
-        #     print("Verified")
-        # if(len(final_adv_labels) == 0):
-        #     print("Verified with pruning")
-        #     dominant_class = ground_truth_label
-
-        
-        # dump constraints and gurobi solved bounds to files
-        print("final_adv_labels", final_adv_labels)
-        P_allayer, Phat_allayer, smallp_allayer, relu_groups = self.generate_krelu_cons(self.man, element, self.nn, 'refinepoly', full_vars=True, use_wralu=use_wralu)
-        Hmatrix, dvector = self.obtain_output_cons_cddlib(final_adv_labels[:1], 1, ground_truth_label, [] ,self.man, element, len(self.nn.layertypes)-1)
-        # dump_solver_inputs(IOIL_lbs, IOIL_ubs, P_allayer, Phat_allayer, smallp_allayer, Hmatrix, dvector)
-        # solve gurobi bounds
-        start_list, var_list, model = build_gurobi_model(self.nn, self.nn.specLB, self.nn.specUB, nlb, nub, relu_groups, self.nn.numlayer, Hmatrix, dvector, output_size)
-        self.solve_neuron_bounds_gurobi(model, var_list, start_list, element, True, bounds_save_path)
-
-        ### ori_lbs, ori_ubs include the bounds of input neurons and ReLU UNSTABLE inputs
-        # ori_lbs, ori_ubs = [IOIL_lbs[0]], [IOIL_ubs[0]]
-        # for i in range(1, len(IOIL_lbs)):
-        #     row_lb, row_ub = IOIL_lbs[i], IOIL_ubs[i]
-        #     lb = [row_lb[j] for j in range(len(row_lb)) if row_lb[j] < 0 and row_ub[j] > 0]
-        #     ub = [row_ub[j] for j in range(len(row_lb)) if row_lb[j] < 0 and row_ub[j] > 0]   
-        #     ori_lbs.append(np.array(lb))
-        #     ori_ubs.append(np.array(ub))
-        # dump_tensors_to_file(ori_lbs, 'ori_lbs')
-        # dump_tensors_to_file(ori_ubs, 'ori_ubs')
-        
-        
-        '''
-        # testing of bound update function
-        print("first deeppoly")
-        self.obtain_output_bound(self.man, element, self.nn)
-        flat_lbs = np.asarray([item for sublist in IOIL_lbs for item in sublist], dtype=np.float64)
-        flat_ubs = np.asarray([item for sublist in IOIL_ubs for item in sublist], dtype=np.float64)
-        # stable_index = flat_lbs[784:] >= 0
-        # print("stable ones", np.count_nonzero(stable_index))
-        # stable_index = flat_ubs[784:] <= 0
-        # print("stable ones", np.count_nonzero(stable_index))
-        num_each_layer = [len(item) for item in IOIL_lbs]
-        clear_neurons_status(self.man, element)
-        print("after clearance")
-        self.obtain_output_bound(self.man, element, self.nn)
-        update_bounds_from_LPsolve(self.man, element, len(IOIL_lbs), num_each_layer, flat_lbs, flat_ubs)
-        print("after rerun")
-        self.obtain_output_bound(self.man, element, self.nn)
-        '''
-
+        if self.GRENA == True:
+            # run the abstract refinement process
+            last_iter = 5
+            pruned_labels = []
+            if(len(final_adv_labels) != 0):
+                # generate krelu constraints
+                P_allayer_ori, Phat_allayer_ori, smallp_allayer_ori, relu_groups_ori = self.generate_krelu_cons(element, full_vars=False)
+                while(len(final_adv_labels)>0):
+                    if(last_iter > 2):
+                        pending_num = 1
+                    else:
+                        pending_num = min(multi_prune, len(final_adv_labels))
+                    print("Handle adv labels:", final_adv_labels[:pending_num])
+                    solStatus, last_iter = self.eliminate_adv_labels(final_adv_labels[:pending_num], pending_num, ground_truth_label, pruned_labels, element, nlb, nub, IOIL_lbs, IOIL_ubs, P_allayer_ori, Phat_allayer_ori, smallp_allayer_ori, relu_groups_ori, output_size, onnx_path)
+                    print("solStatus, last_iter are:", solStatus, last_iter)
+                    if(solStatus == -1):
+                        print("Falsified!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+                        break
+                    elif(solStatus == 0):
+                        print("Unknown!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+                        break
+                    elif(solStatus == 1):
+                        print("Adv labels", final_adv_labels[:pending_num], "pruned")
+                        for item in final_adv_labels[:pending_num]:
+                            pruned_labels.append(item)
+                            final_adv_labels.remove(item)
+            else:
+                print("Verified!!!!!!!!!!!!!!!!!!!!!!!!!!")
+            if(len(final_adv_labels) == 0):
+                print("Verified with pruning!!!!!!!!!!!!!!!!!!!!!!!!")
+                dominant_class = ground_truth_label
+        else:
+            # only conduct solving comparison
+            print("final_adv_labels", final_adv_labels)
+            start_time = time.time()
+            # P_allayer, Phat_allayer, smallp_allayer are constraint representation sent to tailored solver
+            # relu_groups is the constraint respresentation sent to gurobi solver
+            P_allayer, Phat_allayer, smallp_allayer, relu_groups = self.generate_krelu_cons(element, full_vars=False)
+            # assert len(relu_groups) > 0 and all(x is not None for x in relu_groups)
+            # logging.critical(f"num of krelu constraints: {sum(y.cons.shape[0] for x in relu_groups for y in x)}")
+            execution_time = time.time() - start_time
+            logging.critical(f"Generate constraints: {execution_time:.5f}s")
+            Hmatrix, dvector = self.obtain_output_cons_cddlib(final_adv_labels[:1], 1, ground_truth_label, [], element, len(self.nn.layertypes)-1)
+            # solve gurobi bounds
+            start_list, var_list, model = build_gurobi_model(self.nn, self.nn.specLB, self.nn.specUB, nlb, nub, relu_groups, self.nn.numlayer, Hmatrix, dvector, output_size)
+            model.optimize()
+            iter = 0
+            if(model.Status != 3):
+                start_time = time.time()
+                gurobi_lbs, gurobi_ubs = self.solve_neuron_bounds_gurobi(model, var_list, start_list, element, True, bounds_save_path)
+                execution_time = time.time() - start_time
+                logging.critical(f"Gurobi: {execution_time:.5f} seconds")
+                torch_model, input_shape = load_onnx_model(onnx_path, return_input_shape=True)
+                # print(torch_model)
+                if('conv' in onnx_path):
+                    remove_first_n_modules(torch_model, 4)  # Add this line to remove norm layers.
+                solver_inputs = SolverInputs(
+                    model=torch_model,
+                    input_shape=input_shape,
+                    ground_truth_neuron_index=ground_truth_label,
+                    L_list=IOIL_lbs,
+                    U_list=IOIL_ubs,
+                    H=Hmatrix,
+                    d=dvector,
+                    P_list=P_allayer,
+                    P_hat_list=Phat_allayer,
+                    p_list=smallp_allayer,
+                )
+                # for index in range(len(IOIL_lbs)):
+                #     print(f'lenght of IOIL_lbs and IOIL_ubs are {IOIL_lbs[index].shape} {IOIL_ubs[index].shape}')
+                # for index in range(len(P_allayer)):
+                #     print(f'shape of P_allayer, Phat_allayer, smallp_allayer are {P_allayer[index].shape}, {Phat_allayer[index].shape}, {smallp_allayer[index].shape}')
+                start_time = time.time()
+                is_falsified, tailored_lbs, tailored_ubs, _ = solve(
+                                                            solver_inputs,
+                                                            device=torch.device("cuda"),
+                                                            return_solver=True,
+                                                        )
+                execution_time = time.time() - start_time
+                write_self_lbs = [tailored_lb.reshape(-1) for tailored_lb in tailored_lbs]
+                write_self_ubs = [tailored_ub.reshape(-1) for tailored_ub in tailored_ubs]
+                # bounds_save_path
+                with open(bounds_save_path, 'wb') as file:
+                    pickle.dump({
+                        'tailored_lbs': tailored_lbs,
+                        'tailored_ubs': tailored_ubs,
+                        'gurobi_lbs': gurobi_lbs,
+                        'gurobi_ubs': gurobi_ubs,
+                        'IOIL_lbs': IOIL_lbs,
+                        'IOIL_ubs': IOIL_ubs,
+                    }, file)
+                logging.critical(f"Tailored solver: {execution_time:.5f} seconds")
+            else:
+                print("Infeasible!!!!!!")
         elina_abstract0_free(self.man, element)
         return dominant_class, nlb, nub, label_failed, x
     
@@ -647,10 +674,14 @@ class Analyzer:
             obj += 1 * var_list[i]
             model.setObjective(obj, GRB.MINIMIZE)
             model.optimize()
+            if(model.Status == 3):
+                return None, None # means verified
             lbs[i] = model.objbound
 
             model.setObjective(obj, GRB.MAXIMIZE)
             model.optimize()
+            if(model.Status == 3):
+                return None, None # means verified
             ubs[i] = model.objbound
         gurobi_lbs.append(lbs)
         gurobi_ubs.append(ubs)
@@ -688,22 +719,13 @@ class Analyzer:
             else:
                 continue
 
-        # Save bounds to file.
-        with open(bounds_save_path, 'wb') as file:
-            pickle.dump({
-                'gurobi_lbs': gurobi_lbs,
-                'gurobi_ubs': gurobi_ubs,
-            }, file)
-
         return gurobi_lbs, gurobi_ubs
-        # print("solving status is", model.Status)
-        # print("solved optimized value is", model.objbound)
 
-    def obtain_curDP_bounds_and_update_IOIL(self, man, element, input_lbs, input_ubs):
+    def obtain_curDP_bounds_and_update_IOIL(self, element, input_lbs, input_ubs):
         nlb, nub = [], []
         new_lbs, new_ubs = [input_lbs], [input_ubs]
         for layerno, layertype in enumerate(self.nn.layertypes):
-            length = get_num_neurons_in_layer(man, element, layerno)
+            length = get_num_neurons_in_layer(self.man, element, layerno)
             bounds = box_for_layer(self.man, element, layerno)
             itv = [bounds[i] for i in range(length)]
             lb = [x.contents.inf.contents.val.dbl for x in itv]
@@ -717,12 +739,13 @@ class Analyzer:
             elina_interval_array_free(bounds,length)
         return nlb, nub, new_lbs, new_ubs
 
-    def eliminate_adv_labels(self, multi_label_list, num_multi, gt_label, pruned_labels, element, nlb_ori, nub_ori, IOIL_lbs, IOIL_ubs, P_allayer_ori, Phat_allayer_ori, smallp_allayer_ori, relu_groups_ori, output_num = 10, onnx_path = None, use_wralu=False):
+    def eliminate_adv_labels(self, multi_label_list, num_multi, gt_label, pruned_labels, element, nlb_ori, nub_ori, IOIL_lbs, IOIL_ubs, P_allayer_ori, Phat_allayer_ori, smallp_allayer_ori, relu_groups_ori, output_num = 10, onnx_path = None):
         # revert back to oringal deeppoly abstract domain
+        start = time.time()
         clear_neurons_status(self.man, element)
         run_deeppoly(self.man, element)
         P_allayer, Phat_allayer, smallp_allayer, relu_groups = P_allayer_ori, Phat_allayer_ori, smallp_allayer_ori, relu_groups_ori
-        Hmatrix, dvector = self.obtain_output_cons_cddlib(multi_label_list, num_multi, gt_label, pruned_labels, self.man, element, len(self.nn.layertypes)-1, output_num)
+        Hmatrix, dvector = self.obtain_output_cons_cddlib(multi_label_list, num_multi, gt_label, pruned_labels, element, len(self.nn.layertypes)-1, output_num)
         # uses GUROBI to check SAT
         _, _, model = build_gurobi_model(self.nn, self.nn.specLB, self.nn.specUB, nlb_ori, nub_ori, relu_groups, self.nn.numlayer, Hmatrix, dvector, output_num)
         # self.solve_neuron_bounds_gurobi(model, var_list, start_list, element)
@@ -730,37 +753,55 @@ class Analyzer:
         model.optimize()
         iter = 0
         if(model.Status == 3):
-            return 1, iter # means verified
+            return 1, iter # means infeasible, thus verified
         else:
-            # TODO call up the solving process and update IOIL_lbs, IOIL_ubs
             while(model.Status != 3 and iter <= 5):
                 falsified = False
                 print("Start iter", iter)
-                # TODO 
                 torch_model = load_onnx_model(onnx_path)
                 len_unstable_vars = []
                 for i in range(1, len(IOIL_lbs)):
                     len_unstable_vars.append(len([j for j in range(len(IOIL_lbs[i])) if IOIL_lbs[i][j] < 0 and IOIL_ubs[i][j] > 0]))
-                # print("len_unstable_vars for all intermediate layers before solving", len_unstable_vars)
-                # solver_inputs = SolverInputs(torch_model, gt_label, IOIL_lbs, IOIL_ubs, Hmatrix, dvector, P_allayer, Phat_allayer, smallp_allayer)
-                # is_falsified, IOIL_lbs, IOIL_ubs, solver = solve(
-                #                                         solver_inputs,
-                #                                         device=torch.device("cuda"),
-                #                                         return_solver=True,
-                #                                     )
+                print("len_unstable_vars for all intermediate layers before solving", len_unstable_vars)
+                
+                torch_model, input_shape = load_onnx_model(onnx_path, return_input_shape=True)
+                # print(torch_model)
+                remove_first_n_modules(torch_model, 4)  # Add this line to remove norm layers.
+                solver_inputs = SolverInputs(
+                    model=torch_model,
+                    input_shape=input_shape,
+                    ground_truth_neuron_index=gt_label,
+                    L_list=IOIL_lbs,
+                    U_list=IOIL_ubs,
+                    H=Hmatrix,
+                    d=dvector,
+                    P_list=P_allayer,
+                    P_hat_list=Phat_allayer,
+                    p_list=smallp_allayer,
+                )
+                is_falsified, tailored_lbs, tailored_ubs, _ = solve(
+                                                            solver_inputs,
+                                                            device=torch.device("cuda"),
+                                                            return_solver=True,
+                                                        )
+                if(is_falsified):
+                    return -1, iter
+                IOIL_lbs = [tailored_lb.reshape(-1) for tailored_lb in tailored_lbs]
+                IOIL_ubs = [tailored_ub.reshape(-1) for tailored_ub in tailored_ubs]
+
                 len_unstable_vars = []
                 for i in range(1, len(IOIL_lbs)):
                     len_unstable_vars.append(len([j for j in range(len(IOIL_lbs[i])) if IOIL_lbs[i][j] < 0 and IOIL_ubs[i][j] > 0]))
-                # print("len_unstable_vars for all intermediate layers after solving", len_unstable_vars)
-                if(falsified):
-                    return -1
+                print("len_unstable_vars for all intermediate layers after solving", len_unstable_vars)
                 flat_lbs = np.asarray([item for sublist in IOIL_lbs for item in sublist], dtype=np.float64)
                 flat_ubs = np.asarray([item for sublist in IOIL_ubs for item in sublist], dtype=np.float64)
                 num_each_layer = [len(item) for item in IOIL_lbs]
+                print(f"one iteration time is:{time.time()-start}")
                 update_bounds_from_LPsolve(self.man, element, len(IOIL_lbs), num_each_layer, flat_lbs, flat_ubs)
-                P_allayer, Phat_allayer, smallp_allayer, relu_groups = self.generate_krelu_cons(self.man, element, self.nn, 'refinepoly', use_wralu=use_wralu)
+                assert self.domain == "refinepoly"
+                P_allayer, Phat_allayer, smallp_allayer, relu_groups = self.generate_krelu_cons(element)
                 # rerun deeppoly with new bounds will reduce other neurons as well, need to reformulate IOIL_lbs/ubs with current results
-                nlb, nub, IOIL_lbs, IOIL_ubs = self.obtain_curDP_bounds_and_update_IOIL(self.man, element, IOIL_lbs[0], IOIL_ubs[0])
+                nlb, nub, IOIL_lbs, IOIL_ubs = self.obtain_curDP_bounds_and_update_IOIL(element, IOIL_lbs[0], IOIL_ubs[0])
                 _, _, model = build_gurobi_model(self.nn, IOIL_lbs[0], IOIL_ubs[0], nlb, nub, relu_groups, self.nn.numlayer, Hmatrix, dvector, output_num)
                 model.optimize()
                 print("End iter", iter)
@@ -770,7 +811,7 @@ class Analyzer:
             else:
                 return 0, iter
 
-    def obtain_output_cons_cddlib(self, multi_label_list, num_multi, gt_label, pruned_labels, man, element, output_index, output_num = 10):
+    def obtain_output_cons_cddlib(self, multi_label_list, num_multi, gt_label, pruned_labels, element, output_index, output_num = 10):
         # obtain input Octagon for this case
         pruned_num = len(pruned_labels)
         fullvar = [gt_label]
@@ -791,7 +832,7 @@ class Analyzer:
                     coeffs_list.append(coeffs)
             for i, coeffs in enumerate(coeffs_list):
                 linexpr0[i] = generate_linexpr0(0, fullvar, coeffs)
-            upper_bound = get_upper_bound_for_linexpr0(man, element, linexpr0, size, output_index)
+            upper_bound = get_upper_bound_for_linexpr0(self.man, element, linexpr0, size, output_index)
             '''For index i, we have constraint linexpr0[i] (which is fullvar*coeffs) <= upper_bound[i]'''
             # for i, coeffs in enumerate(coeffs_list):
             #     print("coeff is", coeffs, ";", 'ubound is', upper_bound[i])
@@ -834,8 +875,6 @@ class Analyzer:
                 dvector[j] = -row[0]
                 # print("row is",row)
                 Hmatrix[j][fullvar] = [-c for c in row[1:]]
-        # print(dvector)
-        # print(Hmatrix)
         for j in range(pruned_num):
             dvector[j+length] = 0
             Hmatrix[j+length][gt_label] = -1
@@ -846,16 +885,14 @@ class Analyzer:
         # print(Hmatrix, dvector)
         return Hmatrix, dvector
 
-    def index_grouping(self, grouplen, K):
-        sparsed_combs = []
-        i = 0
-        if(K==3):
-            while(i+2 < grouplen):
-                sparsed_combs.append([i, i+1, i+2])
-                i = i + 2
-        return sparsed_combs
-    
-    def relu_grouping(self, length, lb, ub, K=3, s=-2):
+    @staticmethod
+    def index_grouping(grouplen: int, K: int, step: int = 2) -> List[List[int]]:
+        return [
+            list(range(i, i + K))
+                for i in range(0, grouplen - K + 1, step)
+        ]
+
+    def relu_grouping(self, length, lb, ub):
         assert length == len(lb) == len(ub)
 
         all_vars = [i for i in range(length) if lb[i] < 0 < ub[i]]
@@ -872,19 +909,18 @@ class Analyzer:
 
         kact_args = []
         print("len(vars_above_cutoff)", len(vars_above_cutoff))
-        if len(vars_above_cutoff) >= K and config.sparse_n >= K:
+        if len(vars_above_cutoff) >= self.K and config.sparse_n >= self.K:
             grouplen = min(sparse_n, len(vars_above_cutoff))
             # print(grouplen)
             group = vars_above_cutoff[:grouplen]
             vars_above_cutoff = vars_above_cutoff[grouplen:]
-            if grouplen <= K:
+            if grouplen <= self.K:
                 kact_args.append(group)
-            elif K>2:
-                # sparsed_combs = generate_sparse_cover(grouplen, K, s=s)
-                sparsed_combs = self.index_grouping(grouplen, K)
+            elif self.K>2:
+                sparsed_combs = self.index_grouping(grouplen, self.K)
                 for comb in sparsed_combs:
                     kact_args.append(tuple([group[i] for i in comb]))
-            elif K==2:
+            elif self.K==2:
                 raise RuntimeError("K=2 is not supported")
 
         # Also just apply 1-relu for every var.
@@ -898,17 +934,17 @@ class Analyzer:
         # print("number of args", len(kact_args))
         return kact_args, unstable_vars
 
-    def generate_krelu_cons(self, man, element, nn, domain, K=3, s=-2, approx=True, act ='ReLU', full_vars = False, use_wralu = False):
-        # obtain krelu constraints from PRIMA feature
+    def generate_krelu_cons(self, element, full_vars = False):
+        # obtain krelu constraints from multi-relu feature
         P_allayer_list = []
         Phat_allayer_list = []
         smallp_allayer_list = []
         groupNum_each_layer = []
         relu_groups = []
-        act_layer_indexes = [i for i,x in enumerate(nn.layertypes) if x==act]
+        act_layer_indexes = [i for i, x in enumerate(self.nn.layertypes) if x == "ReLU"]
         for _, act_layer in enumerate(act_layer_indexes): # handle each activation layer
             layerno = act_layer - 1  # get the pre-activation
-            length = get_num_neurons_in_layer(man, element, layerno)
+            length = get_num_neurons_in_layer(self.man, element, layerno)
             bounds = box_for_layer(self.man, element, layerno)
             itv = [bounds[i] for i in range(length)]
             nlb = [x.contents.inf.contents.val.dbl for x in itv]
@@ -916,19 +952,19 @@ class Analyzer:
             elina_interval_array_free(bounds,length)
             lbi = np.asarray(nlb, dtype=np.double)
             ubi = np.asarray(nub, dtype=np.double)
-            kact_args, unstable_vars = self.relu_grouping(length, lbi, ubi, K=K, s=s)
+            kact_args, unstable_vars = self.relu_grouping(length, lbi, ubi)
             # print("unstable_vars from prima", len(unstable_vars))
             if(len(kact_args) >= 1):
                 # generate krelu constraints if we have relu group
                 tdim = ElinaDim(length)
-                KAct.man = man
+                KAct.man = self.man
                 KAct.element = element
                 KAct.tdim = tdim
                 KAct.length = length
                 KAct.layerno = layerno
                 KAct.offset = 0
-                KAct.domain = domain
-                KAct.type = act
+                KAct.domain = self.domain
+                KAct.type = "ReLU"
                 total_size = 0    
                 for varsid in kact_args:
                     size = 3**len(varsid) - 1
@@ -942,7 +978,7 @@ class Analyzer:
                             continue
                         linexpr0[i] = generate_linexpr0(0, varsid, coeffs)
                         i = i + 1
-                upper_bound = get_upper_bound_for_linexpr0(man,element,linexpr0, total_size, layerno)
+                upper_bound = get_upper_bound_for_linexpr0(self.man,element,linexpr0, total_size, layerno)
                 i=0
                 input_hrep_array, lb_array, ub_array = [], [], []
                 for varsid in kact_args:
@@ -958,7 +994,7 @@ class Analyzer:
                 # call function and obtain krelu constraints
                 with multiprocessing.Pool(config.numproc) as pool:
                     num_inputs = len(input_hrep_array)
-                    kact_results = pool.starmap(make_kactivation_obj, zip(input_hrep_array, lb_array, ub_array, [approx] * num_inputs, [use_wralu] * num_inputs))
+                    kact_results = pool.starmap(make_kactivation_obj, zip(input_hrep_array, lb_array, ub_array, [self.approx_k] * num_inputs, [self.use_wralu] * num_inputs))
                 relu_groups.append(kact_results)
                 gid = 0
                 cons_count = 0

@@ -274,8 +274,8 @@ parser = argparse.ArgumentParser(description='ERAN Example',  formatter_class=ar
 parser.add_argument('--netname', type=isnetworkfile, default=config.netname, help='the network name, the extension can be only .pb, .pyt, .tf, .meta, and .onnx')
 parser.add_argument('--epsilon', type=float, default=config.epsilon, help='the epsilon for L_infinity perturbation')
 parser.add_argument('--imgid', type=int, default=None, help='the single image id for execution')
-parser.add_argument('--ARENA', type=str2bool, default=False, help='enable ANENA refinement process')
-parser.add_argument('--multi_prune', type=int, default=1, help='enable ANENA refinement process')
+parser.add_argument('--GRENA', type=str2bool, default=False, help='enable GRENA refinement process')
+parser.add_argument('--multi_prune', type=int, default=1, help='enable GRENA refinement process')
 parser.add_argument('--zonotope', type=str, default=config.zonotope, help='file to specify the zonotope matrix')
 parser.add_argument('--subset', type=str, default=config.subset, help='suffix of the file to specify the subset of the test dataset to use')
 parser.add_argument('--target', type=str, default=config.target, help='file specify the targets for the attack')
@@ -326,7 +326,7 @@ parser.add_argument("--approx_k", type=str2bool, default=config.approx_k, help="
 parser.add_argument('--logdir', type=str, default=None, help='Location to save logs to. If not specified, logs are not saved and emitted to stdout')
 parser.add_argument('--logname', type=str, default=None, help='Directory of log files in `logdir`, if not specified timestamp is used')
 parser.add_argument('--bounds_save_path', type=str, default=config.bounds_save_path, help='Save file path for Gurobi-solved bounds')
-parser.add_argument('--use_wralu', action='store_true', help='Whether to use WraLU to solve')
+parser.add_argument('--use_wralu', type=str, default=config.use_wralu, help='Type of WraLU solver to use: "sci", "sciplus" or "sciall". If not specified, default to using original `fkrelu` solver (ie. don\'t use WraLU).')
 
 
 args = parser.parse_args()
@@ -343,6 +343,11 @@ if config.specnumber and not config.input_box and not config.output_constraints:
 
 assert config.netname, 'a network has to be provided for analysis.'
 
+config.bounds_save_path = os.path.abspath(config.bounds_save_path)
+os.makedirs(os.path.dirname(config.bounds_save_path), exist_ok=True)
+
+import logging
+logging.basicConfig(filename=os.path.join(os.path.dirname(config.bounds_save_path), "log"), level=logging.CRITICAL, format=f'use_wralu={config.use_wralu}, eps={config.epsilon}, sparse_n={config.sparse_n}, k={config.k}, s={config.s} - %(message)s')
 
 netname = config.netname
 assert os.path.isfile(netname), f"Model file not found. Please check \"{netname}\" is correct."
@@ -484,7 +489,7 @@ def init(args):
     failed_already = args
 
 correct_list = []     
-# fullpath = "PRIMA_peacock.csv"   
+fullpath = "GRENA_res.csv"   
 net_name_list = netname.split("/")
 net_file = net_name_list[-1]
 
@@ -515,7 +520,16 @@ for i, test in enumerate(tests):
     if domain == 'gpupoly' or domain == 'refinegpupoly':
         is_correctly_classified = network.test(specLB, specUB, int(test[0]), True)
     else:
-        label,nn,nlb,nub,_,_ = eran.analyze_box(specLB, specUB, init_domain(domain), config.timeout_lp, config.timeout_milp, config.use_default_heuristic)
+        label,nn,nlb,nub,_,_ = eran.analyze_box(
+            specLB,
+            specUB,
+            init_domain(domain),
+            config.timeout_lp,
+            config.timeout_milp,
+            config.use_default_heuristic,
+            K=config.k,
+            s=config.s,
+        )
         print("concrete ", nlb[-1])
         if label == int(test[0]):
             is_correctly_classified = True
@@ -542,80 +556,13 @@ for i, test in enumerate(tests):
         IOIL_lbs.append(specLB)
         IOIL_ubs.append(specUB)
 
-        # label,nn,nlb,nub,_,_ = eran.analyze_box(specUB, specUB, init_domain(domain), config.timeout_lp, config.timeout_milp, config.use_default_heuristic)
-        # print("check concrete output with HWC ", nlb[-1])
 
         print("label is", label)
         if domain == 'gpupoly' or domain =='refinegpupoly':
-            # we might use this domain to compare the final GPUARENA with gpupoly
-            is_verified = network.test(specLB, specUB, int(test[0]))
-            if is_verified:
-                print("img", i, "Verified", int(test[0]))
-                verified_images+=1
-            elif domain == 'refinegpupoly':
-                num_outputs = len(nn.weights[-1])
-
-                # Matrix that computes the difference with the expected layer.
-                diffMatrix = np.delete(-np.eye(num_outputs), int(test[0]), 0)
-                diffMatrix[:, label] = 1
-                diffMatrix = diffMatrix.astype(np.float64)
-                
-                # gets the values from GPUPoly.
-                res = network.evalAffineExpr(diffMatrix, back_substitute=network.BACKSUBSTITUTION_WHILE_CONTAINS_ZERO)
-                
-                
-                labels_to_be_verified = []
-                var = 0
-                nn.specLB = specLB
-                nn.specUB = specUB
-                nn.predecessors = []
-                
-                for pred in range(0, nn.numlayer+1):
-                    predecessor = np.zeros(1, dtype=np.int)
-                    predecessor[0] = int(pred-1)
-                    nn.predecessors.append(predecessor)
-                #print("predecessors ", nn.predecessors[0][0])
-                for labels in range(num_outputs):
-                    #print("num_outputs ", num_outputs, nn.numlayer, len(nn.weights[-1]))
-                    if labels != int(test[0]):
-                        if res[var][0] < 0:
-                            labels_to_be_verified.append(labels)
-                        var = var+1
-                #print("relu layers", relu_layers)
-
-                is_verified, x = refine_gpupoly_results(nn, network, num_gpu_layers, relu_layers, int(test[0]),
-                                                        labels_to_be_verified, K=config.k, s=config.s,
-                                                        complete=config.complete,
-                                                        timeout_final_lp=config.timeout_final_lp,
-                                                        timeout_final_milp=config.timeout_final_milp,
-                                                        timeout_lp=config.timeout_lp,
-                                                        timeout_milp=config.timeout_milp,
-                                                        use_milp=config.use_milp,
-                                                        partial_milp=config.partial_milp,
-                                                        max_milp_neurons=config.max_milp_neurons,
-                                                        approx=config.approx_k)
-                if is_verified:
-                    print("img", i, "Verified", int(test[0]))
-                    verified_images += 1
-                else:
-                    if x != None:
-                        adv_image = np.array(x)
-                        res = np.argmax((network.eval(adv_image))[:,0])
-                        if res!=int(test[0]):
-                            denormalize(x,means, stds, dataset)
-                            # print("img", i, "Verified unsafe with adversarial image ", adv_image, "cex label", cex_label, "correct label ", int(test[0]))
-                            print("img", i, "Verified unsafe against label ", res, "correct label ", int(test[0]))
-                            unsafe_images += 1
-
-                        else:
-                            print("img", i, "Failed")
-                    else:
-                        print("img", i, "Failed")
-            else:
-                print("img", i, "Failed")
+            assert False, "We disable this gpu branch!!!"
         else:
             if domain.endswith("poly"):
-                # refinepoly enters this place
+                # refinepoly enters this place, to conduct first abstract interpretation
                 perturbed_label, nn, nlb, nub, failed_labels, x = eran.analyze_box(specLB, specUB, "deeppoly",
                                                                                     config.timeout_lp,
                                                                                     config.timeout_milp,
@@ -629,31 +576,24 @@ for i, test in enumerate(tests):
                                                                                     partial_milp=0,
                                                                                     max_milp_neurons=0,
                                                                                     approx_k=0)
+                print("perturbed_label is", perturbed_label)
                 # the nlb nub info already contains all the lower bounds and upper bounds
-
                 # OVERWRITE design IOIL_lbs to include only input and ReLU input bounds
                 for idx, layertype in enumerate(nn.layertypes):
                     if layertype == 'ReLU': 
                         IOIL_lbs.append(np.array(nlb[idx-1]))
                         IOIL_ubs.append(np.array(nub[idx-1]))
-                # for idx, layertype in enumerate(nn.layertypes):
-                #     if layertype != 'ReLU': 
-                #         IOIL_lbs.append(np.array(nlb[idx]))
-                #         IOIL_ubs.append(np.array(nub[idx]))
 
                 
                 print("nlb ", nlb[-1], " nub ", nub[-1],"adv labels ", failed_labels)
-                # check type and length of data
-                # print([type(obj) for obj in IOIL_lbs])
-                # print(len(IOIL_lbs), len(IOIL_ubs))
-            if not domain.endswith("poly") or not (perturbed_label==label):
+            if not (perturbed_label==label):
                 # if initial deeppoly fails, also enter this domain to re-run with prima constraints
                 perturbed_label, _, nlb, nub, failed_labels, x = eran.analyze_with_gt(specLB, specUB, domain,
                                                                                     config.timeout_lp,
                                                                                     config.timeout_milp,
                                                                                     config.use_default_heuristic,
                                                                                     label=label, prop=prop,
-                                                                                    K=0, s=0,
+                                                                                    K=config.k, s=config.s,
                                                                                     timeout_final_lp=config.timeout_final_lp,
                                                                                     timeout_final_milp=config.timeout_final_milp,
                                                                                     use_milp=config.use_milp,
@@ -664,10 +604,10 @@ for i, test in enumerate(tests):
                                                                                     approx_k=config.approx_k,
                                                                                     IOIL_lbs=IOIL_lbs,
                                                                                     IOIL_ubs=IOIL_ubs,
-                                                                                    ARENA=config.ARENA,
+                                                                                    GRENA=config.GRENA,
                                                                                     multi_prune=config.multi_prune,
                                                                                     onnx_path=config.netname,
-                                                                                    bounds_save_path=os.path.abspath(config.bounds_save_path),
+                                                                                    bounds_save_path=config.bounds_save_path,
                                                                                     use_wralu=config.use_wralu)
                 print("nlb ", nlb[-1], " nub ", nub[-1], "adv labels ", failed_labels)
             if (perturbed_label==label):

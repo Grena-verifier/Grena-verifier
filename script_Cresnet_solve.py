@@ -13,14 +13,14 @@ SAVE_DIR = "your_path_to_save_results"
 # Model related hyper-parameters.
 DATASET = "cifar10"
 MODEL_PATH = "your_path_to_network_file"
-# download from VNNCOMP 2022 benchmark sri_resnet_a
+# download from VNNCOMP 2021 benchmark cifar10_resnet
 IMG_ID: int = 3
 SPARSE_N: int = 10
 K: int = 3
 S: int = 1
 SolverModes: TypeAlias = Literal["original", "sci", "sciplus", "sciall"]
 K_RELU_SOLVER_MODES: List[SolverModes] = ["sciplus"]
-EPSILONS: List[float] = [0.0033]
+EPSILONS: List[float] = [0.0035]
 
 model_name = os.path.splitext(os.path.basename(MODEL_PATH))[0]
 

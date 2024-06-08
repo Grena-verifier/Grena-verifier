@@ -30,9 +30,11 @@ if config.device == Device.CPU:
 else:
     from fppoly_gpu import *
 import time
+from typing import Union, Literal
 
 
-def refine_activation_with_solver_bounds(nn, self, man, element, nlb, nub, relu_groups, timeout_lp, timeout_milp, use_default_heuristic, domain, K=3, s=-2, use_milp=False, approx=True):
+def refine_activation_with_solver_bounds(nn, self, man, element, nlb, nub, relu_groups, timeout_lp, timeout_milp, use_default_heuristic, domain, K=3, s=-2, use_milp=False, approx=True,
+                                         use_wralu: Union[None, Literal["sci", "sciplus", "sciall"]] = None):
     """
     refines the relu transformer
 
@@ -80,7 +82,7 @@ def refine_activation_with_solver_bounds(nn, self, man, element, nlb, nub, relu_
     if nn.activation_counter==0:
         if domain=='deepzono':
             encode_kactivation_cons(nn, man, element, offset, predecessor_index, length, lbi, ubi,
-                                    relu_groups, False, 'refinezono', nn.layertypes[layerno], K=K, s=s, approx=approx)
+                                    relu_groups, False, 'refinezono', nn.layertypes[layerno], K=K, s=s, approx=approx, use_wralu=use_wralu)
             if nn.layertypes[layerno] == 'ReLU':
                 element = relu_zono_layerwise(man,True,element,offset, length, use_default_heuristic)
             elif nn.layertypes[layerno] == 'Sigmoid':
@@ -90,7 +92,7 @@ def refine_activation_with_solver_bounds(nn, self, man, element, nlb, nub, relu_
             return element
         else:
             encode_kactivation_cons(nn, man, element, offset, predecessor_index, length, lbi, ubi,
-                                    relu_groups, False, 'refinepoly', nn.layertypes[layerno], K=K, s=s, approx=approx)
+                                    relu_groups, False, 'refinepoly', nn.layertypes[layerno], K=K, s=s, approx=approx, use_wralu=use_wralu)
             if nn.layertypes[layerno] == 'ReLU':
                 handle_relu_layer(*self.get_arguments(man, element), use_default_heuristic)
             elif nn.layertypes[layerno] == 'Sigmoid':
@@ -125,7 +127,8 @@ def refine_activation_with_solver_bounds(nn, self, man, element, nlb, nub, relu_
         ubi = nub[predecessor_index]
 
         if domain == 'deepzono':
-            encode_kactivation_cons(nn, man, element, offset, predecessor_index, length, lbi, ubi, relu_groups, False, 'refinezono', nn.layertypes[layerno])
+            encode_kactivation_cons(nn, man, element, offset, predecessor_index, length, lbi, ubi, relu_groups,
+                                    False, 'refinezono', nn.layertypes[layerno], use_wralu=use_wralu)
             if config.refine_neurons==True and nn.layertypes[predecessor_index]=="FC":
                 j = 0
                 for i in range(length):
@@ -145,7 +148,8 @@ def refine_activation_with_solver_bounds(nn, self, man, element, nlb, nub, relu_
                 for j in indices:
                     update_bounds_for_neuron(man,element,predecessor_index,j,resl[j],resu[j])
             encode_kactivation_cons(nn, man, element, offset, predecessor_index, length, lbi, ubi,
-                                    relu_groups, False, 'refinepoly', nn.layertypes[layerno], K=K, s=s, approx=approx)
+                                    relu_groups, False, 'refinepoly', nn.layertypes[layerno], K=K,
+                                    s=s, approx=approx, use_wralu=use_wralu)
             if nn.layertypes[layerno] == 'ReLU':
                 handle_relu_layer(*self.get_arguments(man, element), use_default_heuristic)
             elif nn.layertypes[layerno] == 'Sigmoid':

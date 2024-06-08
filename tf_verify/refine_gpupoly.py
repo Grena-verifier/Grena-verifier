@@ -4,7 +4,8 @@ import time
 
 def refine_gpupoly_results(nn, network, num_gpu_layers, relu_layers, true_label, labels_to_be_verified, K=3, s=-2,
                            timeout_lp=10, timeout_milp=10, timeout_final_lp=100, timeout_final_milp=100, use_milp=False,
-                           partial_milp=False, max_milp_neurons=30, complete=False, approx=True, use_wralu=False):
+                           partial_milp=False, max_milp_neurons=30, complete=False, approx=True,
+                           use_wralu: Union[None, Literal["sci", "sciplus", "sciall"]] = None):
     relu_groups = []
     nlb = []
     nub = []

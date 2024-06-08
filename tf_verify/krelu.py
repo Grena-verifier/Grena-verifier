@@ -29,7 +29,8 @@ import multiprocessing
 import math
 
 from config import config
-from wralu_functions import krelu_with_sci
+from wralu_functions import krelu_with_sci, krelu_with_sciplus, krelu_with_sciall
+from typing import Literal, Union
 
 """
 For representing the constraints CDD format is used
@@ -58,17 +59,25 @@ def generate_linexpr0(offset, varids, coeffs):
 
 
 class KAct:
-    def __init__(self, input_hrep, lbi, ubi, approx=True, use_wralu=False):
+    def __init__(self, input_hrep, lbi, ubi, approx=True,
+                 use_wralu: Union[None, Literal["sci", "sciplus", "sciall"]] = None):
         assert KAct.type in ["ReLU", "Tanh", "Sigmoid"]
         self.k = len(input_hrep[0]) - 1
         self.input_hrep = np.array(input_hrep)
 
         if KAct.type == "ReLU":
             if approx:
-                if use_wralu:
-                    self.cons = krelu_with_sci(self.input_hrep, lbi, ubi)
-                else:
+                if use_wralu is None:
                     self.cons = fkrelu(self.input_hrep)
+                elif use_wralu == "sci":
+                    self.cons = krelu_with_sci(self.input_hrep, lbi, ubi)
+                elif use_wralu == "sciplus":
+                    self.cons = krelu_with_sciplus(self.input_hrep, lbi, ubi)
+                elif use_wralu == "sciall":
+                    self.cons = krelu_with_sciall(self.input_hrep, lbi, ubi)
+                else:
+                    raise NotImplementedError(f"Unknown arg use_wralu={use_wralu}")
+
             else:
                 self.cons = krelu_with_cdd(self.input_hrep)
         elif not approx:
@@ -78,8 +87,8 @@ class KAct:
         else:
             self.cons = fsigm_orthant(self.input_hrep)
 
-
-def make_kactivation_obj(input_hrep, lbi, ubi, approx=True, use_wralu=False):
+def make_kactivation_obj(input_hrep, lbi, ubi, approx=True,
+                         use_wralu: Union[None, Literal["sci", "sciplus", "sciall"]] = None):
     return KAct(input_hrep, lbi, ubi, approx, use_wralu)
 
 
@@ -182,7 +191,8 @@ def sparse_heuristic_curve(length, lb, ub, is_sigm, s=-2):
     return kact_args
 
 
-def encode_kactivation_cons(nn, man, element, offset, layerno, length, lbi, ubi, constraint_groups, need_pop, domain, activation_type, K=3, s=-2, approx=True, use_wralu=False):
+def encode_kactivation_cons(nn, man, element, offset, layerno, length, lbi, ubi, constraint_groups, need_pop, domain, activation_type, K=3, s=-2, approx=True,
+                            use_wralu: Union[None, Literal["sci", "sciplus", "sciall"]] = None):
     import deepzono_nodes as dn
     if need_pop:
         constraint_groups.pop()
