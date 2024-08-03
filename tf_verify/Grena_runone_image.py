@@ -48,6 +48,7 @@ from pprint import pprint
 # if config.domain=='gpupoly' or config.domain=='refinegpupoly':
 from refine_gpupoly import *
 from utils import parse_vnn_lib_prop, translate_output_constraints, translate_input_to_box, negate_cstr_or_list_old
+import signal
 
 #ZONOTOPE_EXTENSION = '.zt'
 EPS = 10**(-9)
@@ -270,11 +271,18 @@ def init_domain(d):
     else:
         return d
 
+
+def timeout_handler(signum, frame):
+    raise TimeoutError("Operation timed out!")
+
+signal.signal(signal.SIGALRM, timeout_handler)
+
 parser = argparse.ArgumentParser(description='ERAN Example',  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--netname', type=isnetworkfile, default=config.netname, help='the network name, the extension can be only .pb, .pyt, .tf, .meta, and .onnx')
 parser.add_argument('--epsilon', type=float, default=config.epsilon, help='the epsilon for L_infinity perturbation')
 parser.add_argument('--imgid', type=int, default=None, help='the single image id for execution')
 parser.add_argument('--GRENA', type=str2bool, default=False, help='enable GRENA refinement process')
+parser.add_argument('--timeout_AR', type=float, default=300, help='timeout (in seconds) for the abstract refinement process')
 parser.add_argument('--multi_prune', type=int, default=1, help='enable GRENA refinement process')
 parser.add_argument('--zonotope', type=str, default=config.zonotope, help='file to specify the zonotope matrix')
 parser.add_argument('--subset', type=str, default=config.subset, help='suffix of the file to specify the subset of the test dataset to use')
@@ -517,152 +525,166 @@ for i, test in enumerate(tests):
     # check if the clean image can be classified correctly
     is_correctly_classified = False
     start = time.time()
-    if domain == 'gpupoly' or domain == 'refinegpupoly':
-        is_correctly_classified = network.test(specLB, specUB, int(test[0]), True)
-    else:
-        label,nn,nlb,nub,_,_ = eran.analyze_box(
-            specLB,
-            specUB,
-            init_domain(domain),
-            config.timeout_lp,
-            config.timeout_milp,
-            config.use_default_heuristic,
-            K=config.k,
-            s=config.s,
-        )
-        print("concrete ", nlb[-1])
-        if label == int(test[0]):
-            is_correctly_classified = True
-    # only conduct robustness verification of the correctly classified clean image
-    if is_correctly_classified == True:
-        status = "null"
-        label = int(test[0])
-        perturbed_label = None
-        correctly_classified_images +=1
-        correct_list.append(i)
-        if config.normalized_region==True:
-            specLB = np.clip(image - epsilon,0,1)
-            specUB = np.clip(image + epsilon,0,1)
-            normalize(specLB, means, stds, dataset)
-            normalize(specUB, means, stds, dataset)
+
+    try:
+        signal.alarm(int(args.timeout_AR))  # Start timeout timer
+
+        if domain == 'gpupoly' or domain == 'refinegpupoly':
+            is_correctly_classified = network.test(specLB, specUB, int(test[0]), True)
         else:
-            specLB = specLB - epsilon
-            specUB = specUB + epsilon
-
-        if config.target == None:
-            prop = -1
-
-        # add input intervals
-        IOIL_lbs.append(specLB)
-        IOIL_ubs.append(specUB)
-
-
-        print("label is", label)
-        if domain == 'gpupoly' or domain =='refinegpupoly':
-            assert False, "We disable this gpu branch!!!"
-        else:
-            if domain.endswith("poly"):
-                # refinepoly enters this place, to conduct first abstract interpretation
-                perturbed_label, nn, nlb, nub, failed_labels, x = eran.analyze_box(specLB, specUB, "deeppoly",
-                                                                                    config.timeout_lp,
-                                                                                    config.timeout_milp,
-                                                                                    config.use_default_heuristic,
-                                                                                    label=label, prop=prop, K=0, s=0,
-                                                                                    timeout_final_lp=config.timeout_final_lp,
-                                                                                    timeout_final_milp=config.timeout_final_milp,
-                                                                                    use_milp=False,
-                                                                                    complete=False,
-                                                                                    terminate_on_failure=not config.complete,
-                                                                                    partial_milp=0,
-                                                                                    max_milp_neurons=0,
-                                                                                    approx_k=0)
-                print("perturbed_label is", perturbed_label)
-                # the nlb nub info already contains all the lower bounds and upper bounds
-                # OVERWRITE design IOIL_lbs to include only input and ReLU input bounds
-                for idx, layertype in enumerate(nn.layertypes):
-                    if layertype == 'ReLU': 
-                        IOIL_lbs.append(np.array(nlb[idx-1]))
-                        IOIL_ubs.append(np.array(nub[idx-1]))
-
-                
-                print("nlb ", nlb[-1], " nub ", nub[-1],"adv labels ", failed_labels)
-            if not (perturbed_label==label):
-                # if initial deeppoly fails, also enter this domain to re-run with prima constraints
-                perturbed_label, _, nlb, nub, failed_labels, x = eran.analyze_with_gt(specLB, specUB, domain,
-                                                                                    config.timeout_lp,
-                                                                                    config.timeout_milp,
-                                                                                    config.use_default_heuristic,
-                                                                                    label=label, prop=prop,
-                                                                                    K=config.k, s=config.s,
-                                                                                    timeout_final_lp=config.timeout_final_lp,
-                                                                                    timeout_final_milp=config.timeout_final_milp,
-                                                                                    use_milp=config.use_milp,
-                                                                                    complete=False,
-                                                                                    terminate_on_failure=not config.complete,
-                                                                                    partial_milp=config.partial_milp,
-                                                                                    max_milp_neurons=config.max_milp_neurons,
-                                                                                    approx_k=config.approx_k,
-                                                                                    IOIL_lbs=IOIL_lbs,
-                                                                                    IOIL_ubs=IOIL_ubs,
-                                                                                    GRENA=config.GRENA,
-                                                                                    multi_prune=config.multi_prune,
-                                                                                    onnx_path=config.netname,
-                                                                                    bounds_save_path=config.bounds_save_path,
-                                                                                    use_wralu=config.use_wralu)
-                print("nlb ", nlb[-1], " nub ", nub[-1], "adv labels ", failed_labels)
-            if (perturbed_label==label):
-                # verification succeeds
-                print("img", i, "Verified", label)
-                status = "Verified"
-                verified_images += 1
+            label,nn,nlb,nub,_,_ = eran.analyze_box(
+                specLB,
+                specUB,
+                init_domain(domain),
+                config.timeout_lp,
+                config.timeout_milp,
+                config.use_default_heuristic,
+                K=config.k,
+                s=config.s,
+            )
+            print("concrete ", nlb[-1])
+            if label == int(test[0]):
+                is_correctly_classified = True
+        # only conduct robustness verification of the correctly classified clean image
+        if is_correctly_classified == True:
+            status = "null"
+            label = int(test[0])
+            perturbed_label = None
+            correctly_classified_images +=1
+            correct_list.append(i)
+            if config.normalized_region==True:
+                specLB = np.clip(image - epsilon,0,1)
+                specUB = np.clip(image + epsilon,0,1)
+                normalize(specLB, means, stds, dataset)
+                normalize(specUB, means, stds, dataset)
             else:
-                # resolve with MILP or check violation
-                if complete==True and failed_labels is not None:
-                    failed_labels = list(set(failed_labels))
-                    constraints = get_constraints_for_dominant_label(label, failed_labels)
-                    verified_flag, adv_image, adv_val = verify_network_with_milp(nn, specLB, specUB, nlb, nub, constraints)
-                    if(verified_flag==True):
-                        print("img", i, "Verified as Safe using MILP", label)
-                        verified_images += 1
-                    else:
-                        if adv_image != None:
-                            cex_label,_,_,_,_,_ = eran.analyze_box(adv_image[0], adv_image[0], 'deepzono', config.timeout_lp, config.timeout_milp, config.use_default_heuristic, approx_k=config.approx_k)
-                            if(cex_label!=label):
-                                denormalize(adv_image[0], means, stds, dataset)
-                                print(adv_image[0])
-                                # print("img", i, "Verified unsafe with adversarial image ", adv_image, "cex label", cex_label, "correct label ", label)
-                                print("img", i, "Verified unsafe against label ", cex_label, "correct label ", label)
-                                unsafe_images+=1
-                            else:
-                                print("img", i, "Failed with MILP, without a adeversarial example")
-                        else:
-                            print("img", i, "Failed with MILP")
+                specLB = specLB - epsilon
+                specUB = specUB + epsilon
+
+            if config.target == None:
+                prop = -1
+
+            # add input intervals
+            IOIL_lbs.append(specLB)
+            IOIL_ubs.append(specUB)
+
+
+            print("label is", label)
+            if domain == 'gpupoly' or domain =='refinegpupoly':
+                assert False, "We disable this gpu branch!!!"
+            else:
+                if domain.endswith("poly"):
+                    # refinepoly enters this place, to conduct first abstract interpretation
+                    perturbed_label, nn, nlb, nub, failed_labels, x = eran.analyze_box(specLB, specUB, "deeppoly",
+                                                                                        config.timeout_lp,
+                                                                                        config.timeout_milp,
+                                                                                        config.use_default_heuristic,
+                                                                                        label=label, prop=prop, K=0, s=0,
+                                                                                        timeout_final_lp=config.timeout_final_lp,
+                                                                                        timeout_final_milp=config.timeout_final_milp,
+                                                                                        use_milp=False,
+                                                                                        complete=False,
+                                                                                        terminate_on_failure=not config.complete,
+                                                                                        partial_milp=0,
+                                                                                        max_milp_neurons=0,
+                                                                                        approx_k=0)
+                    print("perturbed_label is", perturbed_label)
+                    # the nlb nub info already contains all the lower bounds and upper bounds
+                    # OVERWRITE design IOIL_lbs to include only input and ReLU input bounds
+                    for idx, layertype in enumerate(nn.layertypes):
+                        if layertype == 'ReLU': 
+                            IOIL_lbs.append(np.array(nlb[idx-1]))
+                            IOIL_ubs.append(np.array(nub[idx-1]))
+
+                    
+                    print("nlb ", nlb[-1], " nub ", nub[-1],"adv labels ", failed_labels)
+                if not (perturbed_label==label):
+                    # if initial deeppoly fails, also enter this domain to re-run with prima constraints
+                    perturbed_label, _, nlb, nub, failed_labels, x = eran.analyze_with_gt(specLB, specUB, domain,
+                                                                                        config.timeout_lp,
+                                                                                        config.timeout_milp,
+                                                                                        config.use_default_heuristic,
+                                                                                        label=label, prop=prop,
+                                                                                        K=config.k, s=config.s,
+                                                                                        timeout_final_lp=config.timeout_final_lp,
+                                                                                        timeout_final_milp=config.timeout_final_milp,
+                                                                                        use_milp=config.use_milp,
+                                                                                        complete=False,
+                                                                                        terminate_on_failure=not config.complete,
+                                                                                        partial_milp=config.partial_milp,
+                                                                                        max_milp_neurons=config.max_milp_neurons,
+                                                                                        approx_k=config.approx_k,
+                                                                                        IOIL_lbs=IOIL_lbs,
+                                                                                        IOIL_ubs=IOIL_ubs,
+                                                                                        GRENA=config.GRENA,
+                                                                                        multi_prune=config.multi_prune,
+                                                                                        onnx_path=config.netname,
+                                                                                        bounds_save_path=config.bounds_save_path,
+                                                                                        use_wralu=config.use_wralu)
+                    print("nlb ", nlb[-1], " nub ", nub[-1], "adv labels ", failed_labels)
+                if (perturbed_label==label):
+                    # verification succeeds
+                    print("img", i, "Verified", label)
+                    status = "Verified"
+                    verified_images += 1
                 else:
-                    if x != None:
-                        cex_label,_,_,_,_,_ = eran.analyze_box(x,x,'deepzono',config.timeout_lp, config.timeout_milp, config.use_default_heuristic, approx_k=config.approx_k)
-                        # print("cex label ", cex_label, "label ", label)
-                        if(cex_label!=label):
-                            denormalize(x,means, stds, dataset)
-                            # print("violation here", x)
-                            # print("img", i, "Verified unsafe with adversarial image ", x, "cex label ", cex_label, "correct label ", label)
-                            print("img", i, "Verified unsafe against label ", cex_label, "correct label ", label)
-                            status = "Falsified"
-                            unsafe_images += 1
+                    # resolve with MILP or check violation
+                    if complete==True and failed_labels is not None:
+                        failed_labels = list(set(failed_labels))
+                        constraints = get_constraints_for_dominant_label(label, failed_labels)
+                        verified_flag, adv_image, adv_val = verify_network_with_milp(nn, specLB, specUB, nlb, nub, constraints)
+                        if(verified_flag==True):
+                            print("img", i, "Verified as Safe using MILP", label)
+                            verified_images += 1
+                        else:
+                            if adv_image != None:
+                                cex_label,_,_,_,_,_ = eran.analyze_box(adv_image[0], adv_image[0], 'deepzono', config.timeout_lp, config.timeout_milp, config.use_default_heuristic, approx_k=config.approx_k)
+                                if(cex_label!=label):
+                                    denormalize(adv_image[0], means, stds, dataset)
+                                    print(adv_image[0])
+                                    # print("img", i, "Verified unsafe with adversarial image ", adv_image, "cex label", cex_label, "correct label ", label)
+                                    print("img", i, "Verified unsafe against label ", cex_label, "correct label ", label)
+                                    unsafe_images+=1
+                                else:
+                                    print("img", i, "Failed with MILP, without a adeversarial example")
+                            else:
+                                print("img", i, "Failed with MILP")
+                    else:
+                        if x != None:
+                            cex_label,_,_,_,_,_ = eran.analyze_box(x,x,'deepzono',config.timeout_lp, config.timeout_milp, config.use_default_heuristic, approx_k=config.approx_k)
+                            # print("cex label ", cex_label, "label ", label)
+                            if(cex_label!=label):
+                                denormalize(x,means, stds, dataset)
+                                # print("violation here", x)
+                                # print("img", i, "Verified unsafe with adversarial image ", x, "cex label ", cex_label, "correct label ", label)
+                                print("img", i, "Verified unsafe against label ", cex_label, "correct label ", label)
+                                status = "Falsified"
+                                unsafe_images += 1
+                            else:
+                                status = "DK"
+                                print("img", i, "Failed, without a adversarial example")
                         else:
                             status = "DK"
-                            print("img", i, "Failed, without a adversarial example")
-                    else:
-                        status = "DK"
-                        print("img", i, "Failed")
+                            print("img", i, "Failed")
 
+            end = time.time()
+            cum_time += end - start # only count samples where we did try to certify
+            # with open(fullpath, 'a+', newline='') as write_obj:
+            #     csv_writer = csv.writer(write_obj)
+            #     csv_writer.writerow([net_file, str(dataset), "img "+str(i)+" with label "+str(int(test[0])), "eps="+str(epsilon), "PRIMA", str(end - start)+" secs", status])
+        else:
+            print("img",i,"not considered, incorrectly classified")
+            end = time.time()
+
+    except TimeoutError:
         end = time.time()
-        cum_time += end - start # only count samples where we did try to certify
-        # with open(fullpath, 'a+', newline='') as write_obj:
-        #     csv_writer = csv.writer(write_obj)
-        #     csv_writer.writerow([net_file, str(dataset), "img "+str(i)+" with label "+str(int(test[0])), "eps="+str(epsilon), "PRIMA", str(end - start)+" secs", status])
-    else:
-        print("img",i,"not considered, incorrectly classified")
-        end = time.time()
+        try:
+            print("img", i, "Time out with unknown result. label =", label)
+        except NameError:
+            print("img", i, 'Time out with unknown result. "label" variable has not been initialised yet.')
+    finally:
+        signal.alarm(0)  # Clear timeout timer
+
 
     print(f"progress: {1 + i - config.from_test}/{config.num_tests}, "
             f"correct:  {correctly_classified_images}/{1 + i - config.from_test}, "
