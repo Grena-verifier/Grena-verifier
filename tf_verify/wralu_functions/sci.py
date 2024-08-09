@@ -168,7 +168,8 @@ def cal_vertices(constraints: np.ndarray, check=False, fraction=False) -> np.nda
                 vertices = poly.get_generators()
             if vertices_num == len(vertices):
                 print(vertices_num, "->", len(vertices), "This is no risk.")
-
+    except TimeoutError:
+        raise
     except Exception:
         mat = cdd.Matrix(constraints, number_type="fraction")
         mat.rep_type = cdd.RepType.INEQUALITY

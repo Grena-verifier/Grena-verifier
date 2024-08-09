@@ -244,6 +244,8 @@ def acasxu_recursive(specLB, specUB, max_depth=10, depth=0):
         if failed_already.value and config.complete:
             try:
                 verified_flag, adv_examples, _ = verify_network_with_milp(nn, specLB, specUB, nlb, nub, constraints)
+            except TimeoutError:
+                raise
             except Exception as ex:
                 print(f"{ex}Exception occured for the following inputs:")
                 print(specLB, specUB, max_depth, depth)
