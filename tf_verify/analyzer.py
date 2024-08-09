@@ -38,6 +38,9 @@ import cdd
 import numpy as np
 import os.path
 import logging
+import gurobipy as gp
+import os
+import multiprocessing
 
 
 def dump_solver_inputs(
@@ -659,8 +662,49 @@ class Analyzer:
                 print("Infeasible!!!!!!")
         elina_abstract0_free(self.man, element)
         return dominant_class, nlb, nub, label_failed, x
-    
+
+    @staticmethod
+    def process_neuron(index, j, start_list, i, var_name_list, model_path):
+        """Function used in multi-processing for `Analyzer.solve_neuron_bounds_gurobi` method."""
+        with gp.Env(empty=True) as env:
+            env.setParam('OutputFlag', 0)
+            env.start()
+            with gp.read(model_path, env) as model:
+                obj = LinExpr()
+                var_name = var_name_list[j+start_list[i-1]] # i-1 is the input layer index
+                var = model.getVarByName(var_name)
+                obj += 1 * var
+
+                model.setObjective(obj, GRB.MINIMIZE)
+                model.optimize()
+                lb = model.objbound
+
+                model.setObjective(obj, GRB.MAXIMIZE)
+                model.optimize()
+                ub = model.objbound
+        return index, lb, ub
+
     def solve_neuron_bounds_gurobi(self, model, var_list, start_list, element, full_vars = False, bounds_save_path: str = "dump.pkl"):
+        def parallel_optimization(neuron_index, start_list, i, var_list, model_path, length):
+            var_name_list = [x.VarName for x in var_list]
+            with multiprocessing.Pool() as pool:
+                args = [(index, j, start_list, i, var_name_list, model_path) for index, j in enumerate(neuron_index)]
+                results = pool.starmap(self.process_neuron, args)
+
+            lbs = np.zeros(length, dtype=np.float64)
+            ubs = np.zeros(length, dtype=np.float64)
+            for index, lb, ub in results:
+                lbs[index] = lb
+                ubs[index] = ub
+            return lbs, ubs
+
+
+
+        # Temporarily save Gurobi model to be copied to each processing
+        # during multi-processing.
+        TEMP_MODEL_PATH = "temp_gurobi_model.mps"
+        model.write(TEMP_MODEL_PATH)
+
         ### resolve input bounds
         length = start_list[1]
         print("input dimension is", length)
@@ -699,22 +743,15 @@ class Analyzer:
                 unstable_index = [j for j in range(length) if lb[j] < 0 and ub[j] > 0]
                 elina_interval_array_free(bounds,length)
                 solve_neuron_count = length if full_vars else len(unstable_index)
-                lbs, ubs = np.zeros(solve_neuron_count, dtype = np.float64), np.zeros(solve_neuron_count, dtype = np.float64)
                 neuron_index = range(length) if full_vars else unstable_index
-                for index, j in enumerate(neuron_index):
-                    obj = LinExpr()
-                    obj += 1 * var_list[j+start_list[i-1]] # i-1 is the input layer index
-                    model.setObjective(obj, GRB.MINIMIZE)
-                    model.optimize()
-                    lbs[index] = model.objbound
-
-                    model.setObjective(obj, GRB.MAXIMIZE)
-                    model.optimize()
-                    ubs[index] = model.objbound
+                lbs, ubs = parallel_optimization(neuron_index, start_list, i, var_list, TEMP_MODEL_PATH, solve_neuron_count)
                 gurobi_lbs.append(lbs)
                 gurobi_ubs.append(ubs)
             else:
                 continue
+
+        # Clean up the temporary model file
+        os.remove(TEMP_MODEL_PATH)
 
         return gurobi_lbs, gurobi_ubs
 
