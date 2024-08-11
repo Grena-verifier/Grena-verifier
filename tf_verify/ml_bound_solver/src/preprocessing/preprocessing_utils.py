@@ -1,55 +1,24 @@
 import itertools
-from typing import Iterator, List, Tuple, cast
+from typing import Iterable, Iterator, List, Tuple, cast
 
-import onnx2torch.node_converters
 import torch
+from onnx2torch.node_converters import (
+    OnnxBinaryMathOperation,
+    OnnxConstant,
+    OnnxReshape,
+)
 from torch import Tensor, fx, nn
 from typing_extensions import TypeAlias
 
 
 def is_add_layer(module: nn.Module) -> bool:
-    return (
-        isinstance(module, onnx2torch.node_converters.OnnxBinaryMathOperation)
-        and module.math_op_function is torch.add
-    )
+    return isinstance(module, OnnxBinaryMathOperation) and module.math_op_function is torch.add
 
 
 def freeze_model(model: nn.Module) -> None:
     """Freezes the model's learnable parameters."""
     for param in model.parameters():
         param.requires_grad = False
-
-
-def remove_first_n_modules(graph_module: fx.GraphModule, n: int) -> None:
-    """Mutably remove the the first `n` number of modules from a
-    `torch.fx.GraphModule`.
-
-    Args:
-        graph_module (fx.GraphModule): `GraphModule` to remove the layers from.
-        n (int): Number of modules to remove.
-    """
-    nodes = cast(Iterator[fx.Node], iter(graph_module.graph.nodes))
-    next(nodes)  # Pop the input node, as we don't include that in the removal
-    nodes_to_remove = list(itertools.islice(nodes, n))
-    assert all(
-        len(node.users) == 1 for node in nodes_to_remove
-    ), "Failed assumption that all nodes to remove only has 1 user."
-
-    # Find the node that will be the new first node after the removal.
-    new_first_node = next(iter(nodes_to_remove[-1].users))
-
-    # Replace the argument of the first node after removal with the input node.
-    input_node = next(iter(graph_module.graph.nodes))
-    new_first_node.args = (input_node,)
-
-    # Remove the nodes, starting from the back.
-    nodes_to_remove.reverse()
-    for node in nodes_to_remove:
-        graph_module.graph.erase_node(node)
-
-    # Recompile the graph
-    graph_module.recompile()
-    graph_module.delete_all_unused_submodules()
 
 
 NeuronCoords: TypeAlias = Tuple[int, Tuple[int, ...]]
@@ -115,3 +84,76 @@ def get_C_for_layer(
             coords.append((i, index))
         C_list.append(C)
     return C_list, coords
+
+
+def replace_reshape_with_flatten(model: fx.GraphModule) -> None:
+    """Mutably replace all `Reshape` layers in `model` with `torch.nn.Flatten`.
+
+    This is for ONNX models that has `Reshape` layers inplace of `Flatten` which
+    causes problems for our solver, and thus needs to be replaced.
+    """
+    graph = model.graph
+
+    # The reshape layers will have an module named `initializers` which needs to
+    # be removed.
+
+    # Remove the reshapes' references to the `initializers` module, and replace
+    # each reshape layer with `torch.nn.Flatten` layer.
+    for node in cast(Iterable[fx.Node], graph.nodes):
+        if (
+            node.op == "call_module"
+            and isinstance(node.target, str)
+            and isinstance(getattr(model, node.target), OnnxReshape)
+        ):
+            node.args = (node.args[0],)
+            setattr(model, node.target, nn.Flatten())
+
+    # Finally remove the artifact `initializers` module.
+    for node in cast(Iterable[fx.Node], graph.nodes):
+        if (
+            node.op == "get_attr"
+            and isinstance(node.target, str)
+            and node.target.startswith("initializers")
+        ):
+            graph.erase_node(node)
+
+    # Recompile the graph and remove unused submodules
+    model.recompile()
+    model.delete_all_unused_submodules()
+
+
+def remove_onnx_norm_layers(model: fx.GraphModule) -> None:
+    """Mutably remove the ONNX normalization layers (if any) in `model`."""
+    modules = {name: module for name, module in model.named_children()}
+    graph = model.graph
+
+    nodes = cast(Iterator[fx.Node], iter(graph.nodes))
+    input_node = next(nodes)
+    nodes_to_remove: list[fx.Node] = []
+    for node in nodes:
+        if node.op != "call_module" or not isinstance(node.target, str):
+            continue
+
+        module = modules[node.target]
+        if isinstance(module, (OnnxConstant, OnnxBinaryMathOperation)):
+            nodes_to_remove.append(node)
+            continue
+
+        # Stop at first node that's not `OnnxConstant` or `OnnxBinaryMathOperation`.
+        if len(nodes_to_remove) == 0:
+            # If no nodes to remove, that means there's no norm layers, and thus
+            # must take in input node.
+            assert node.args[0] == input_node
+            return
+
+        assert len(node.args) == 1, "I'm assuming there's only 1 arg."
+        node.args = (input_node,)
+        break
+
+    # Remove in reversed order to avoid removing dependencies b4 dependent nodes.
+    for node in reversed(nodes_to_remove):
+        graph.erase_node(node)
+
+    # Recompile the graph
+    model.recompile()
+    model.delete_all_unused_submodules()

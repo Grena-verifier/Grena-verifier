@@ -28,7 +28,6 @@ from typing import List, Literal, Union
 from torch import Tensor, nn
 # from ml-part-time.src.compare_against_gurobi import compare_against_gurobi
 from ml_bound_solver.src.preprocessing.solver_inputs import SolverInputs
-from ml_bound_solver.src.preprocessing.preprocessing_utils import remove_first_n_modules
 from ml_bound_solver.src.solve import solve
 from ml_bound_solver.src.utils import load_onnx_model
 # from ml-part-time.src.utils import seed_everything
@@ -620,8 +619,6 @@ class Analyzer:
                 logging.critical(f"Gurobi: {execution_time:.5f} seconds")
                 torch_model, input_shape = load_onnx_model(onnx_path, return_input_shape=True)
                 # print(torch_model)
-                if('conv' in onnx_path):
-                    remove_first_n_modules(torch_model, 4)  # Add this line to remove norm layers.
                 solver_inputs = SolverInputs(
                     model=torch_model,
                     input_shape=input_shape,
@@ -766,7 +763,6 @@ class Analyzer:
                 
                 torch_model, input_shape = load_onnx_model(onnx_path, return_input_shape=True)
                 # print(torch_model)
-                remove_first_n_modules(torch_model, 4)  # Add this line to remove norm layers.
                 solver_inputs = SolverInputs(
                     model=torch_model,
                     input_shape=input_shape,
