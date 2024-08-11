@@ -703,55 +703,58 @@ class Analyzer:
         # Temporarily save Gurobi model to be copied to each processing
         # during multi-processing.
         TEMP_MODEL_PATH = "temp_gurobi_model.mps"
-        model.write(TEMP_MODEL_PATH)
+        try:
+            model.write(TEMP_MODEL_PATH)
 
-        ### resolve input bounds
-        length = start_list[1]
-        print("input dimension is", length)
-        gurobi_lbs, gurobi_ubs = [], []
-        lbs, ubs = np.zeros(length, dtype = np.float64), np.zeros(length, dtype = np.float64)
-        for i in range(length):
-            obj = LinExpr()
-            obj += 1 * var_list[i]
-            model.setObjective(obj, GRB.MINIMIZE)
-            model.optimize()
-            if(model.Status == 3):
-                return None, None # means verified
-            lbs[i] = model.objbound
+            ### resolve input bounds
+            length = start_list[1]
+            print("input dimension is", length)
+            gurobi_lbs, gurobi_ubs = [], []
+            lbs, ubs = np.zeros(length, dtype = np.float64), np.zeros(length, dtype = np.float64)
+            for i in range(length):
+                obj = LinExpr()
+                obj += 1 * var_list[i]
+                model.setObjective(obj, GRB.MINIMIZE)
+                model.optimize()
+                if(model.Status == 3):
+                    return None, None # means verified
+                lbs[i] = model.objbound
 
-            model.setObjective(obj, GRB.MAXIMIZE)
-            model.optimize()
-            if(model.Status == 3):
-                return None, None # means verified
-            ubs[i] = model.objbound
-        gurobi_lbs.append(lbs)
-        gurobi_ubs.append(ubs)
+                model.setObjective(obj, GRB.MAXIMIZE)
+                model.optimize()
+                if(model.Status == 3):
+                    return None, None # means verified
+                ubs[i] = model.objbound
+            gurobi_lbs.append(lbs)
+            gurobi_ubs.append(ubs)
 
-        ### resolve intermediate layers that are RELU INPUTS
-        for i in range(1, len(start_list)):
-            layerno = i - 1
-            if self.nn.layertypes[layerno] in ['SkipCat']:
-                continue # do nothing
-            elif(self.nn.layertypes[layerno]=='ReLU'):
-                # handle the input of ReLU layer
-                input_layerno = layerno - 1
-                length = get_num_neurons_in_layer(self.man, element, input_layerno)
-                bounds = box_for_layer(self.man, element, input_layerno)
-                itv = [bounds[j] for j in range(length)]
-                lb = [x.contents.inf.contents.val.dbl for x in itv]
-                ub = [x.contents.sup.contents.val.dbl for x in itv]
-                unstable_index = [j for j in range(length) if lb[j] < 0 and ub[j] > 0]
-                elina_interval_array_free(bounds,length)
-                solve_neuron_count = length if full_vars else len(unstable_index)
-                neuron_index = range(length) if full_vars else unstable_index
-                lbs, ubs = parallel_optimization(neuron_index, start_list, i, var_list, TEMP_MODEL_PATH, solve_neuron_count)
-                gurobi_lbs.append(lbs)
-                gurobi_ubs.append(ubs)
-            else:
-                continue
+            ### resolve intermediate layers that are RELU INPUTS
+            for i in range(1, len(start_list)):
+                layerno = i - 1
+                if self.nn.layertypes[layerno] in ['SkipCat']:
+                    continue # do nothing
+                elif(self.nn.layertypes[layerno]=='ReLU'):
+                    # handle the input of ReLU layer
+                    input_layerno = layerno - 1
+                    length = get_num_neurons_in_layer(self.man, element, input_layerno)
+                    bounds = box_for_layer(self.man, element, input_layerno)
+                    itv = [bounds[j] for j in range(length)]
+                    lb = [x.contents.inf.contents.val.dbl for x in itv]
+                    ub = [x.contents.sup.contents.val.dbl for x in itv]
+                    unstable_index = [j for j in range(length) if lb[j] < 0 and ub[j] > 0]
+                    elina_interval_array_free(bounds,length)
+                    solve_neuron_count = length if full_vars else len(unstable_index)
+                    neuron_index = range(length) if full_vars else unstable_index
+                    lbs, ubs = parallel_optimization(neuron_index, start_list, i, var_list, TEMP_MODEL_PATH, solve_neuron_count)
+                    gurobi_lbs.append(lbs)
+                    gurobi_ubs.append(ubs)
+                else:
+                    continue
 
-        # Clean up the temporary model file
-        os.remove(TEMP_MODEL_PATH)
+        finally:
+            # Clean up the temporary model file
+            if os.path.exists(TEMP_MODEL_PATH):
+                os.remove(TEMP_MODEL_PATH)
 
         return gurobi_lbs, gurobi_ubs
 
