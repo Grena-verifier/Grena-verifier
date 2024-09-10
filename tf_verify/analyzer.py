@@ -584,6 +584,7 @@ class Analyzer:
                     solStatus, last_iter = self.eliminate_adv_labels(final_adv_labels[:pending_num], pending_num, ground_truth_label, pruned_labels, element, nlb, nub, IOIL_lbs, IOIL_ubs, P_allayer_ori, Phat_allayer_ori, smallp_allayer_ori, relu_groups_ori, output_size, onnx_path)
                     print("solStatus, last_iter are:", solStatus, last_iter)
                     if(solStatus == -1):
+                        label_failed.append(final_adv_labels[0])
                         print("Falsified!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
                         break
                     elif(solStatus == 0):
