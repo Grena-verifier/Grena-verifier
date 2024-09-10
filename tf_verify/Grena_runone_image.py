@@ -473,6 +473,7 @@ os.sched_setaffinity(0,cpu_affinity)
 correctly_classified_images = 0
 verified_images = 0
 unsafe_images = 0
+falsified_images = 0
 cum_time = 0
 
 if config.vnn_lib_spec is not None:
@@ -628,56 +629,31 @@ for i, test in enumerate(tests):
                     status = "Verified"
                     verified_images += 1
                 else:
-                    # resolve with MILP or check violation
-                    if complete==True and failed_labels is not None:
-                        failed_labels = list(set(failed_labels))
-                        constraints = get_constraints_for_dominant_label(label, failed_labels)
-                        verified_flag, adv_image, adv_val = verify_network_with_milp(nn, specLB, specUB, nlb, nub, constraints)
-                        if(verified_flag==True):
-                            print("img", i, "Verified as Safe using MILP", label)
-                            verified_images += 1
-                        else:
-                            if adv_image != None:
-                                cex_label,_,_,_,_,_ = eran.analyze_box(adv_image[0], adv_image[0], 'deepzono', config.timeout_lp, config.timeout_milp, config.use_default_heuristic, approx_k=config.approx_k)
-                                if(cex_label!=label):
-                                    denormalize(adv_image[0], means, stds, dataset)
-                                    print(adv_image[0])
-                                    # print("img", i, "Verified unsafe with adversarial image ", adv_image, "cex label", cex_label, "correct label ", label)
-                                    print("img", i, "Verified unsafe against label ", cex_label, "correct label ", label)
-                                    unsafe_images+=1
-                                else:
-                                    print("img", i, "Failed with MILP, without a adeversarial example")
-                            else:
-                                print("img", i, "Failed with MILP")
+                    if (len(failed_labels)) > 0:
+                        print("img", i, "Falsified")
+                        status = "Falsified"
+                        falsified_images += 1
                     else:
-                        if x != None:
-                            cex_label,_,_,_,_,_ = eran.analyze_box(x,x,'deepzono',config.timeout_lp, config.timeout_milp, config.use_default_heuristic, approx_k=config.approx_k)
-                            # print("cex label ", cex_label, "label ", label)
-                            if(cex_label!=label):
-                                denormalize(x,means, stds, dataset)
-                                # print("violation here", x)
-                                # print("img", i, "Verified unsafe with adversarial image ", x, "cex label ", cex_label, "correct label ", label)
-                                print("img", i, "Verified unsafe against label ", cex_label, "correct label ", label)
-                                status = "Falsified"
-                                unsafe_images += 1
-                            else:
-                                status = "DK"
-                                print("img", i, "Failed, without a adversarial example")
-                        else:
-                            status = "DK"
-                            print("img", i, "Failed")
-
+                        print("img", i, "Unknown")
+                        status = "Unknown"
+                        unsafe_images += 1
             end = time.time()
             cum_time += end - start # only count samples where we did try to certify
-            # with open(fullpath, 'a+', newline='') as write_obj:
-            #     csv_writer = csv.writer(write_obj)
-            #     csv_writer.writerow([net_file, str(dataset), "img "+str(i)+" with label "+str(int(test[0])), "eps="+str(epsilon), "PRIMA", str(end - start)+" secs", status])
+            with open(fullpath, 'a+', newline='') as write_obj:
+                csv_writer = csv.writer(write_obj)
+                csv_writer.writerow([net_file, str(dataset), "img "+str(i)+" with label "+str(int(test[0])), "eps="+str(epsilon), "GRENA", str(end - start)+" secs", status])
         else:
             print("img",i,"not considered, incorrectly classified")
             end = time.time()
 
     except TimeoutError:
         end = time.time()
+        status = "Unknown"
+        unsafe_images += 1
+        cum_time += end - start
+        with open(fullpath, 'a+', newline='') as write_obj:
+            csv_writer = csv.writer(write_obj)
+            csv_writer.writerow([net_file, str(dataset), "img "+str(i)+" with label "+str(int(test[0])), "eps="+str(epsilon), "GRENA", str(end - start)+" secs", status])
         try:
             print("img", i, "Time out with unknown result. label =", label)
         except NameError:
@@ -690,11 +666,14 @@ for i, test in enumerate(tests):
             f"correct:  {correctly_classified_images}/{1 + i - config.from_test}, "
             f"verified: {verified_images}/{correctly_classified_images}, "
             f"unsafe: {unsafe_images}/{correctly_classified_images}, ",
+            f"falsified: {falsified_images}/{correctly_classified_images}, ",
             f"time: {end - start:.3f}; {0 if cum_time==0 else cum_time / correctly_classified_images:.3f}; {cum_time:.3f}")
-    # with open(fullpath, 'a+', newline='') as write_obj:
-    #     csv_writer = csv.writer(write_obj)
-    #     csv_writer.writerow(["verified", str(verified_images)+'/'+str(correctly_classified_images)])
-    #     csv_writer.writerow(["unsafe", str(unsafe_images)+'/'+str(correctly_classified_images)])
-    #     csv_writer.writerow(["average time", str(cum_time / correctly_classified_images)])
+if (config.GRENA):
+    with open(fullpath, 'a+', newline='') as write_obj:
+        csv_writer = csv.writer(write_obj)
+        csv_writer.writerow(["verified", str(verified_images)+'/'+str(correctly_classified_images)])
+        csv_writer.writerow(["unsafe", str(unsafe_images)+'/'+str(correctly_classified_images)])
+        csv_writer.writerow(["falsified", str(falsified_images)+'/'+str(correctly_classified_images)])
+        csv_writer.writerow(["average time", str(cum_time / correctly_classified_images)])
 print('analysis precision ',verified_images,'/ ', correctly_classified_images)
 print('correct image list', correct_list)
