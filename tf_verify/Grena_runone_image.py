@@ -501,7 +501,7 @@ def init(args):
 
 correct_list = []     
 model_name = os.path.splitext(os.path.basename(config.netname))[0]
-fullpath = f"GRENA_result_model={model_name}_eps={config.epsilon}.csv"
+GRENA_RESULT_FILENAME = f"GRENA_result_model={model_name}_eps={config.epsilon}.csv"
 net_name_list = netname.split("/")
 net_file = net_name_list[-1]
 
@@ -642,7 +642,7 @@ for i, test in enumerate(tests):
                         unsafe_images += 1
             end = time.time()
             cum_time += end - start # only count samples where we did try to certify
-            with open(fullpath, 'a+', newline='') as write_obj:
+            with open(os.path.join(config.output_dir, GRENA_RESULT_FILENAME), 'a+', newline='') as write_obj:
                 csv_writer = csv.writer(write_obj)
                 csv_writer.writerow([net_file, str(dataset), "img "+str(i)+" with label "+str(int(test[0])), "eps="+str(epsilon), "GRENA", str(end - start)+" secs", status])
         else:
@@ -654,7 +654,7 @@ for i, test in enumerate(tests):
         status = "Unknown"
         unsafe_images += 1
         cum_time += end - start
-        with open(fullpath, 'a+', newline='') as write_obj:
+        with open(os.path.join(config.output_dir, GRENA_RESULT_FILENAME), 'a+', newline='') as write_obj:
             csv_writer = csv.writer(write_obj)
             csv_writer.writerow([net_file, str(dataset), "img "+str(i)+" with label "+str(int(test[0])), "eps="+str(epsilon), "GRENA", str(end - start)+" secs", status])
         try:
@@ -672,7 +672,7 @@ for i, test in enumerate(tests):
             f"falsified: {falsified_images}/{correctly_classified_images}, ",
             f"time: {end - start:.3f}; {0 if cum_time==0 else cum_time / correctly_classified_images:.3f}; {cum_time:.3f}")
 if (config.GRENA):
-    with open(fullpath, 'a+', newline='') as write_obj:
+    with open(os.path.join(config.output_dir, GRENA_RESULT_FILENAME), 'a+', newline='') as write_obj:
         csv_writer = csv.writer(write_obj)
         csv_writer.writerow(["verified", str(verified_images)+'/'+str(correctly_classified_images)])
         csv_writer.writerow(["unsafe", str(unsafe_images)+'/'+str(correctly_classified_images)])
