@@ -632,7 +632,7 @@ for i, test in enumerate(tests):
                     status = "Verified"
                     verified_images += 1
                 else:
-                    if (len(failed_labels)) > 0:
+                    if (failed_labels != None and len(failed_labels)) > 0:
                         print("img", i, "Falsified")
                         status = "Falsified"
                         falsified_images += 1
