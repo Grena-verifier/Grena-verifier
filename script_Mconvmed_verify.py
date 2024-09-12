@@ -41,7 +41,8 @@ def main() -> None:
                     --GRENA True
                     --dataset "{DATASET}"
                     --netname "{os.path.abspath(MODEL_PATH)}"
-                    --bounds_save_path "{os.path.join(SAVE_DIR, solver, save_file_name)}"
+                    --output_dir "{os.path.join(SAVE_DIR, solver)}"
+                    --bounds_save_filename "{save_file_name}"
 
                     {f'--use_wralu "{solver}"' if solver != "original" else ""}
                     --epsilon "{eps}"
