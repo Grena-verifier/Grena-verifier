@@ -498,7 +498,8 @@ def init(args):
     failed_already = args
 
 correct_list = []     
-fullpath = "GRENA_res.csv"   
+model_name = os.path.splitext(os.path.basename(config.netname))[0]
+fullpath = f"GRENA_result_model={model_name}_eps={config.epsilon}.csv"
 net_name_list = netname.split("/")
 net_file = net_name_list[-1]
 
