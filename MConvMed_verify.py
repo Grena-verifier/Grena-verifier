@@ -13,7 +13,7 @@ SAVE_DIR = "/home/yuyi/loris5/PRIMA/experiment"
 # Model related hyper-parameters.
 DATASET = "mnist"
 MODEL_PATH = "/home/yuyi/loris5/PRIMA/mnist_convMedGRELU.onnx"
-IMG_IDS: List[int] = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,18,19,20,21,22,23,24,25,26,27,28,29,30,31]
+IMG_IDS: List[int] = list(range(1, 17)) + list(range(18, 32))  # 1-16 + 18-31
 # IMG_IDS: List[int] = [17] #有点bug wralu的问题 直接忽略
 SPARSE_N: int = 50
 K: int = 3
