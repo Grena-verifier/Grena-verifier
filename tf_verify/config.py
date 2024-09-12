@@ -92,5 +92,6 @@ class config:
     gamma = float('inf')
     quant_step = None
 
-    bounds_save_path: str = "dump.pkl" # Save file path for Gurobi-solved bounds.
+    output_dir: str = "./" # Directory of all output files.
+    bounds_save_filename: str = "dump.pkl" # Save filename for Gurobi-solved bounds.
     use_wralu: Union[None, Literal["sci", "sciplus", "sciall"]] = None
