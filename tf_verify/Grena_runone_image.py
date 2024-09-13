@@ -282,7 +282,7 @@ parser.add_argument('--netname', type=isnetworkfile, default=config.netname, hel
 parser.add_argument('--epsilon', type=float, default=config.epsilon, help='the epsilon for L_infinity perturbation')
 parser.add_argument('--imgid', type=int, default=None, help='the single image id for execution')
 parser.add_argument('--GRENA', type=str2bool, default=False, help='enable GRENA refinement process')
-parser.add_argument('--timeout_AR', type=float, default=300, help='timeout (in seconds) for the abstract refinement process')
+parser.add_argument('--timeout_AR', type=float, default=-1, help='timeout (in seconds) for the abstract refinement process. Set to -1 to disable timeout.')
 parser.add_argument('--multi_prune', type=int, default=1, help='enable GRENA refinement process')
 parser.add_argument('--zonotope', type=str, default=config.zonotope, help='file to specify the zonotope matrix')
 parser.add_argument('--subset', type=str, default=config.subset, help='suffix of the file to specify the subset of the test dataset to use')
@@ -531,7 +531,8 @@ for i, test in enumerate(tests):
     start = time.time()
 
     try:
-        signal.alarm(int(args.timeout_AR))  # Start timeout timer
+        if args.timeout_AR != -1:
+            signal.alarm(int(args.timeout_AR))  # Start timeout timer
 
         if domain == 'gpupoly' or domain == 'refinegpupoly':
             is_correctly_classified = network.test(specLB, specUB, int(test[0]), True)
@@ -662,7 +663,8 @@ for i, test in enumerate(tests):
         except NameError:
             print("img", i, 'Time out with unknown result. "label" variable has not been initialised yet.')
     finally:
-        signal.alarm(0)  # Clear timeout timer
+        if args.timeout_AR != -1:
+            signal.alarm(0)  # Clear timeout timer
 
 
     print(f"progress: {1 + i - config.from_test}/{config.num_tests}, "
