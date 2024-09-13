@@ -643,9 +643,10 @@ for i, test in enumerate(tests):
                         unsafe_images += 1
             end = time.time()
             cum_time += end - start # only count samples where we did try to certify
-            with open(os.path.join(config.output_dir, GRENA_RESULT_FILENAME), 'a+', newline='') as write_obj:
-                csv_writer = csv.writer(write_obj)
-                csv_writer.writerow([net_file, str(dataset), "img "+str(i)+" with label "+str(int(test[0])), "eps="+str(epsilon), "GRENA", str(end - start)+" secs", status])
+            if config.GRENA:
+                with open(os.path.join(config.output_dir, GRENA_RESULT_FILENAME), 'a+', newline='') as write_obj:
+                    csv_writer = csv.writer(write_obj)
+                    csv_writer.writerow([net_file, str(dataset), "img "+str(i)+" with label "+str(int(test[0])), "eps="+str(epsilon), "GRENA", str(end - start)+" secs", status])
         else:
             print("img",i,"not considered, incorrectly classified")
             end = time.time()
@@ -655,9 +656,10 @@ for i, test in enumerate(tests):
         status = "Unknown"
         unsafe_images += 1
         cum_time += end - start
-        with open(os.path.join(config.output_dir, GRENA_RESULT_FILENAME), 'a+', newline='') as write_obj:
-            csv_writer = csv.writer(write_obj)
-            csv_writer.writerow([net_file, str(dataset), "img "+str(i)+" with label "+str(int(test[0])), "eps="+str(epsilon), "GRENA", str(end - start)+" secs", status])
+        if config.GRENA:
+            with open(os.path.join(config.output_dir, GRENA_RESULT_FILENAME), 'a+', newline='') as write_obj:
+                csv_writer = csv.writer(write_obj)
+                csv_writer.writerow([net_file, str(dataset), "img "+str(i)+" with label "+str(int(test[0])), "eps="+str(epsilon), "GRENA", str(end - start)+" secs", status])
         try:
             print("img", i, "Time out with unknown result. label =", label)
         except NameError:
