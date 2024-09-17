@@ -37,7 +37,7 @@ def main() -> None:
                 --domain refinepoly
                 --dataset "{DATASET}"
                 --netname "{os.path.abspath(MODEL_PATH)}"
-                --output_dir "{os.path.join(SAVE_DIR, solver)}"
+                --output_dir "{os.path.abspath(os.path.join(SAVE_DIR, solver))}"
                 --bounds_save_filename "{save_file_name}"
 
                 {f'--use_wralu "{solver}"' if solver != "original" else ""}
