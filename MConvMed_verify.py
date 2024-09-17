@@ -42,6 +42,7 @@ def main() -> None:
                     --netname "{os.path.abspath(MODEL_PATH)}"
                     --output_dir "{os.path.join(SAVE_DIR, solver)}"
                     --bounds_save_filename "{save_file_name}"
+                    --timeout_AR 600
 
                     {f'--use_wralu "{solver}"' if solver != "original" else ""}
                     --epsilon "{eps}"
