@@ -13,13 +13,13 @@ SAVE_DIR = "/home/yuyi/loris5/PRIMA/experiment"
 # Model related hyper-parameters.
 DATASET = "mnist"
 MODEL_PATH = "/home/yuyi/loris5/PRIMA/mnist_256x6.onnx"
-IMG_ID: int = 3
+IMG_ID: int = 10
 SPARSE_N: int = 50
 K: int = 3
 S: int = 1
 SolverModes: TypeAlias = Literal["original", "sci", "sciplus", "sciall"]
 K_RELU_SOLVER_MODES: List[SolverModes] = ["sciplus"]
-EPSILONS: List[float] = [0.05]
+EPSILONS: List[float] = [0.033]
 
 model_name = os.path.splitext(os.path.basename(MODEL_PATH))[0]
 
