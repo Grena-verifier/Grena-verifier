@@ -12,7 +12,7 @@ SAVE_DIR = "/home/shauntan/eran/experiment_mconvmed_verify"
 
 # Model related hyper-parameters.
 DATASET = "mnist"
-MODEL_PATH = "/home/yuyi/loris5/PRIMA/mnist_convMedGRELU.onnx"
+MODEL_PATH = "models/mnist/convMedGRELU__Point.onnx"
 IMG_IDS: List[int] = list(range(1, 17)) + list(range(18, 32))  # 1-16 + 18-31
 # IMG_IDS: List[int] = [17] #有点bug wralu的问题 直接忽略
 SPARSE_N: int = 50

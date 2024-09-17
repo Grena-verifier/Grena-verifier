@@ -12,7 +12,7 @@ SAVE_DIR = "/home/shauntan/eran/experiment_m6x256_bounds"
 
 # Model related hyper-parameters.
 DATASET = "mnist"
-MODEL_PATH = "/home/yuyi/loris5/PRIMA/mnist_256x6.onnx"
+MODEL_PATH = "models/mnist/mnist-net_256x6.onnx"
 IMG_ID: int = 10
 SPARSE_N: int = 50
 K: int = 3

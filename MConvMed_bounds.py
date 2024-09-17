@@ -12,7 +12,7 @@ SAVE_DIR = "/home/shauntan/eran/experiment_mconvmed_bounds"
 
 # Model related hyper-parameters.
 DATASET = "mnist"
-MODEL_PATH = "/home/yuyi/loris5/PRIMA/mnist_convMedGRELU.onnx"
+MODEL_PATH = "models/mnist/convMedGRELU__Point.onnx"
 IMG_ID: int = 2
 SPARSE_N: int = 50
 K: int = 3
