@@ -7,7 +7,7 @@ from typing_extensions import TypeAlias
 VIRTUAL_ENV_PATH = "/home/yuyi/loris5/PRIMA/venv_3dot8/bin/activate"
 """Path to activate Python virtual env."""
 
-SAVE_DIR = "/home/shauntan/eran/experiment_mconvmed_bounds"
+SAVE_DIR = "experiment_mconvmed_bounds"
 """Directory to save results."""
 
 # Model related hyper-parameters.
@@ -32,7 +32,7 @@ def main() -> None:
 
             command = f"""
             source "{os.path.abspath(VIRTUAL_ENV_PATH)}";
-            cd /home/shauntan/eran/tf_verify;
+            cd {os.path.abspath("tf_verify")};
             python Grena_runone_image.py
                 --domain refinepoly
                 --dataset "{DATASET}"
