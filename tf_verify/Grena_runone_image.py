@@ -681,6 +681,6 @@ if (config.GRENA):
         csv_writer.writerow(["verified", str(verified_images)+'/'+str(correctly_classified_images)])
         csv_writer.writerow(["unsafe", str(unsafe_images)+'/'+str(correctly_classified_images)])
         csv_writer.writerow(["falsified", str(falsified_images)+'/'+str(correctly_classified_images)])
-        csv_writer.writerow(["average time", str(cum_time / correctly_classified_images)])
+        csv_writer.writerow(["average time", str(cum_time / correctly_classified_images) if correctly_classified_images > 0 else "-1"])
 print('analysis precision ',verified_images,'/ ', correctly_classified_images)
 print('correct image list', correct_list)
