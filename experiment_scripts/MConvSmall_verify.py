@@ -6,7 +6,7 @@ from typing import List, Literal
 VIRTUAL_ENV_PATH = "/home/yuyi/loris5/PRIMA/venv_3dot8/bin/activate"
 """Path to activate Python virtual env."""
 
-SAVE_DIR = "experiments/MConvSmall/verify"
+SAVE_DIR = "results/MConvSmall/verify"
 """Directory to save results."""
 
 # Model related hyper-parameters.
