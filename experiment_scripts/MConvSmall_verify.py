@@ -13,6 +13,7 @@ SAVE_DIR = "results/MConvSmall/verify"
 DATASET = "mnist"
 MODEL_PATH = "../models/mnist/convSmallRELU__Point.onnx"
 IMG_IDS: List[int] = [1,2,3,4,5,6,7,8,12,13,16,21,22,26,35,36,41,42,48,49,50,76,80,84,93,102,139,140,161,185]
+IMG_IDS = [i - 1 for i in IMG_IDS]  # Above IDs uses 1-index, ERAN uses 0-index. This converts it to 0-index.
 SPARSE_N: int = 50
 K: int = 3
 S: int = 1

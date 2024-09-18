@@ -13,6 +13,7 @@ SAVE_DIR = "results/M6x256/bounds"
 DATASET = "mnist"
 MODEL_PATH = "../models/mnist/mnist-net_256x6.onnx"
 IMG_ID: int = 10
+IMG_ID -= 1  # Above ID uses 1-index, ERAN uses 0-index. This converts it to 0-index.
 SPARSE_N: int = 50
 K: int = 3
 S: int = 1

@@ -13,6 +13,7 @@ SAVE_DIR = "results/M6x256/verify"
 DATASET = "mnist"
 MODEL_PATH = "../models/mnist/mnist-net_256x6.onnx"
 IMG_IDS: List[int] = [1,3,10,18,23,28,34,40,45,54,62,69,79,89,92,114,119,128,133,139,141,142,156,159,165,173,186,189,191,198]
+IMG_IDS = [i - 1 for i in IMG_IDS]  # Above IDs uses 1-index, ERAN uses 0-index. This converts it to 0-index.
 SPARSE_N: int = 50
 K: int = 3
 S: int = 1
