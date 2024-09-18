@@ -7,7 +7,7 @@ from typing_extensions import TypeAlias
 VIRTUAL_ENV_PATH = "/home/yuyi/loris5/PRIMA/venv_3dot8/bin/activate"
 """Path to activate Python virtual env."""
 
-SAVE_DIR = "experiment/cconvbig_verify"
+SAVE_DIR = "experiments/CConvBig/verify"
 """Directory to save results."""
 
 # Model related hyper-parameters.
