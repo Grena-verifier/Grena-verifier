@@ -246,6 +246,14 @@ def print_progress(depth):
         sys.stdout.write('\r%.10f percent, %.02f s\n' % (100 * progress, time.time()-rec_start))
 
 def get_tests(dataset, geometric):
+    # Custom 1000-row dataset for Grena-verifier.
+    if dataset == "mnist":
+        print("Using custom 1000-row Grena-verifier MNIST dataset.")
+        return csv.reader(open('../data/mnist_1000.csv', 'r'), delimiter=',')
+    if dataset == "cifar10":
+        print("Using custom 1000-row Grena-verifier CIFAR10 dataset.")
+        return csv.reader(open('../data/cifar10_1000.csv', 'r'), delimiter=',')
+
     if geometric:
         csvfile = open('../deepg/code/datasets/{}_test.csv'.format(dataset), 'r')
     else:
@@ -291,7 +299,7 @@ parser.add_argument('--epsfile', type=str, default=config.epsfile, help='file sp
 parser.add_argument('--vnn_lib_spec', type=str, default=config.vnn_lib_spec, help='VNN_LIB spec file, defining input and output constraints')
 parser.add_argument('--specnumber', type=int, default=config.specnumber, help='the property number for the acasxu networks')
 parser.add_argument('--domain', type=str, default=config.domain, help='the domain name can be either deepzono, refinezono, deeppoly, refinepoly, gpupoly, refinegpupoly')
-parser.add_argument('--dataset', type=str, default=config.dataset, help='the dataset, can be either mnist, cifar10, acasxu, or fashion')
+parser.add_argument('--dataset', type=str, default=config.dataset, help='the dataset, can be either mnist, cifar10, acasxu, or fashion (Note: mnist & cifar10 will load our custom 1000-row Grena-verifier dataset)')
 parser.add_argument('--complete', type=str2bool, default=config.complete,  help='flag specifying where to use complete verification or not')
 parser.add_argument('--timeout_lp', type=float, default=config.timeout_lp,  help='timeout for the LP solver')
 parser.add_argument('--timeout_final_lp', type=float, default=config.timeout_final_lp,  help='timeout for the final LP solver')
