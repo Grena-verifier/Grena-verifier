@@ -11,7 +11,7 @@ SAVE_DIR = "experiments/M6x256/verify"
 
 # Model related hyper-parameters.
 DATASET = "mnist"
-MODEL_PATH = "models/mnist/mnist-net_256x6.onnx"
+MODEL_PATH = "../models/mnist/mnist-net_256x6.onnx"
 IMG_IDS: List[int] = [1,3,10,18,23,28,34,40,45,54,62,69,79,89,92,114,119,128,133,139,141,142,156,159,165,173,186,189,191,198]
 SPARSE_N: int = 50
 K: int = 3
@@ -25,7 +25,7 @@ def main() -> None:
     for img in IMG_IDS:
         command = f"""
         source "{os.path.abspath(VIRTUAL_ENV_PATH)}";
-        cd {os.path.abspath("tf_verify")};
+        cd {os.path.abspath("../tf_verify")};
         python Grena_runone_image.py
             --domain refinepoly
             --GRENA True

@@ -11,7 +11,7 @@ SAVE_DIR = "experiments/MConvMed/bounds"
 
 # Model related hyper-parameters.
 DATASET = "mnist"
-MODEL_PATH = "models/mnist/convMedGRELU__Point.onnx"
+MODEL_PATH = "../models/mnist/convMedGRELU__Point.onnx"
 IMG_ID: int = 2
 SPARSE_N: int = 50
 K: int = 3
@@ -28,7 +28,7 @@ def main() -> None:
 
     command = f"""
     source "{os.path.abspath(VIRTUAL_ENV_PATH)}";
-    cd {os.path.abspath("tf_verify")};
+    cd {os.path.abspath("../tf_verify")};
     python Grena_runone_image.py
         --domain refinepoly
         --dataset "{DATASET}"

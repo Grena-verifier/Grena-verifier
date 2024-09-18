@@ -11,7 +11,7 @@ SAVE_DIR = "experiments/M6x256/bounds"
 
 # Model related hyper-parameters.
 DATASET = "mnist"
-MODEL_PATH = "models/mnist/mnist-net_256x6.onnx"
+MODEL_PATH = "../models/mnist/mnist-net_256x6.onnx"
 IMG_ID: int = 10
 SPARSE_N: int = 50
 K: int = 3
@@ -28,7 +28,7 @@ def main() -> None:
 
     command = f"""
     source "{os.path.abspath(VIRTUAL_ENV_PATH)}";
-    cd {os.path.abspath("tf_verify")};
+    cd {os.path.abspath("../tf_verify")};
     python Grena_runone_image.py
         --domain refinepoly
         --dataset "{DATASET}"

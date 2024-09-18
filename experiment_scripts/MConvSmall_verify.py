@@ -11,7 +11,7 @@ SAVE_DIR = "experiments/MConvSmall/verify"
 
 # Model related hyper-parameters.
 DATASET = "mnist"
-MODEL_PATH = "models/mnist/convSmallRELU__Point.onnx"
+MODEL_PATH = "../models/mnist/convSmallRELU__Point.onnx"
 IMG_IDS: List[int] = [1,2,3,4,5,6,7,8,12,13,16,21,22,26,35,36,41,42,48,49,50,76,80,84,93,102,139,140,161,185]
 SPARSE_N: int = 50
 K: int = 3
@@ -25,7 +25,7 @@ def main() -> None:
     for img in IMG_IDS:
         command = f"""
         source "{os.path.abspath(VIRTUAL_ENV_PATH)}";
-        cd {os.path.abspath("tf_verify")};
+        cd {os.path.abspath("../tf_verify")};
         python Grena_runone_image.py
             --domain refinepoly
             --GRENA True

@@ -11,7 +11,7 @@ SAVE_DIR = "experiments/CConvBig/verify"
 
 # Model related hyper-parameters.
 DATASET = "cifar10"
-MODEL_PATH = "models/cifar10/convBigRELU__DiffAI.onnx"
+MODEL_PATH = "../models/cifar10/convBigRELU__DiffAI.onnx"
 IMG_IDS: List[int] = [1,13,14,18,21,33,34,46,48,50,56,66,72,81,89,92,98,102,103,104,105,116,120,131,133,146,156,164,166,175]
 SPARSE_N: int = 50
 K: int = 3
@@ -25,7 +25,7 @@ def main() -> None:
     for img in IMG_IDS:
         command = f"""
         source "{os.path.abspath(VIRTUAL_ENV_PATH)}";
-        cd {os.path.abspath("tf_verify")};
+        cd {os.path.abspath("../tf_verify")};
         python Grena_runone_image.py
             --domain refinepoly
             --GRENA True

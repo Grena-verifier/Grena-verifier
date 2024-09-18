@@ -11,7 +11,7 @@ SAVE_DIR = "experiments/MConvMed/verify"
 
 # Model related hyper-parameters.
 DATASET = "mnist"
-MODEL_PATH = "models/mnist/convMedGRELU__Point.onnx"
+MODEL_PATH = "../models/mnist/convMedGRELU__Point.onnx"
 IMG_IDS: List[int] = list(range(1, 17)) + list(range(18, 32))  # 1-16 + 18-31
 # IMG_IDS: List[int] = [17] #有点bug wralu的问题 直接忽略
 SPARSE_N: int = 50
@@ -26,7 +26,7 @@ def main() -> None:
     for img in IMG_IDS:
         command = f"""
         source "{os.path.abspath(VIRTUAL_ENV_PATH)}";
-        cd {os.path.abspath("tf_verify")};
+        cd {os.path.abspath("../tf_verify")};
         python Grena_runone_image.py
             --domain refinepoly
             --GRENA True
