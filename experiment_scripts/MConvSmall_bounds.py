@@ -15,8 +15,7 @@ assert DATASET in ["mnist", "cifar10"], "This script isn't designed for datasets
 USE_NORMALISED_DATASET: bool = False
 
 MODEL_PATH = "../models/mnist/convSmallRELU__Point.onnx"
-IMG_ID: int = 76
-IMG_ID -= 1  # Above ID uses 1-index, ERAN uses 0-index. This converts it to 0-index.
+IMG_ID: int = 75
 SPARSE_N: int = 50
 K: int = 3
 S: int = 1

@@ -15,8 +15,7 @@ assert DATASET in ["mnist", "cifar10"], "This script isn't designed for datasets
 USE_NORMALISED_DATASET: bool = False
 
 MODEL_PATH = "../models/cifar10/resnet_3b2_bn_mixup_adv_4.0_bs128_lr-1.onnx"
-IMG_ID: int = 90
-IMG_ID -= 1  # Above ID uses 1-index, ERAN uses 0-index. This converts it to 0-index.
+IMG_ID: int = 89
 SPARSE_N: int = 50
 K: int = 3
 S: int = 1

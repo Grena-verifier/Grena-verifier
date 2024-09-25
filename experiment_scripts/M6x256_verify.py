@@ -15,8 +15,7 @@ assert DATASET in ["mnist", "cifar10"], "This script isn't designed for datasets
 USE_NORMALISED_DATASET: bool = False
 
 MODEL_PATH = "../models/mnist/mnist-net_256x6.onnx"
-IMG_IDS: List[int] = [1,3,10,18,23,28,34,40,45,54,62,69,79,89,92,114,119,128,133,139,141,142,156,159,165,173,186,189,191,198]
-IMG_IDS = [i - 1 for i in IMG_IDS]  # Above IDs uses 1-index, ERAN uses 0-index. This converts it to 0-index.
+IMG_IDS: List[int] = [0,2,9,17,22,27,33,39,44,53,61,68,78,88,91,113,118,127,132,138,140,141,155,158,164,172,185,188,190,197]
 SPARSE_N: int = 50
 K: int = 3
 S: int = 1

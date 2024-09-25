@@ -15,9 +15,7 @@ assert DATASET in ["mnist", "cifar10"], "This script isn't designed for datasets
 USE_NORMALISED_DATASET: bool = False
 
 MODEL_PATH = "../models/mnist/convMedGRELU__Point.onnx"
-IMG_IDS: List[int] = list(range(1, 17)) + list(range(18, 32))  # 1-16 + 18-31
-# IMG_IDS: List[int] = [17] #有点bug wralu的问题 直接忽略
-IMG_IDS = [i - 1 for i in IMG_IDS]  # Above IDs uses 1-index, ERAN uses 0-index. This converts it to 0-index.
+IMG_IDS: List[int] = list(range(0, 16)) + list(range(17, 31))  # 0-15 + 17-30
 SPARSE_N: int = 50
 K: int = 3
 S: int = 1
