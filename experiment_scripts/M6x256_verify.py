@@ -10,7 +10,10 @@ SAVE_DIR = "results/M6x256/verify"
 """Directory to save results."""
 
 # Model related hyper-parameters.
-DATASET = "mnist"
+DATASET: Literal["mnist", "cifar10"] = "mnist"
+assert DATASET in ["mnist", "cifar10"], "This script isn't designed for datasets other than MNIST and CIFAR10."
+USE_NORMALISED_DATASET: bool = False
+
 MODEL_PATH = "../models/mnist/mnist-net_256x6.onnx"
 IMG_IDS: List[int] = [1,3,10,18,23,28,34,40,45,54,62,69,79,89,92,114,119,128,133,139,141,142,156,159,165,173,186,189,191,198]
 IMG_IDS = [i - 1 for i in IMG_IDS]  # Above IDs uses 1-index, ERAN uses 0-index. This converts it to 0-index.
@@ -34,6 +37,11 @@ def main() -> None:
             --netname "{os.path.abspath(MODEL_PATH)}"
             --output_dir "{os.path.abspath(SAVE_DIR)}"
             --timeout_AR 600
+            {
+                '' if USE_NORMALISED_DATASET
+                else '--mean 0 --std 1' if DATASET == "mnist"
+                else '--mean 0 0 0 --std 1 1 1'
+            }
 
             {f'--use_wralu "{SOLVER_MODE}"' if SOLVER_MODE != "original" else ""}
             --epsilon "{EPSILON}"

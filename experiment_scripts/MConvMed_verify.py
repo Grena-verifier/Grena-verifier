@@ -10,7 +10,10 @@ SAVE_DIR = "results/MConvMed/verify"
 """Directory to save results."""
 
 # Model related hyper-parameters.
-DATASET = "mnist"
+DATASET: Literal["mnist", "cifar10"] = "mnist"
+assert DATASET in ["mnist", "cifar10"], "This script isn't designed for datasets other than MNIST and CIFAR10."
+USE_NORMALISED_DATASET: bool = False
+
 MODEL_PATH = "../models/mnist/convMedGRELU__Point.onnx"
 IMG_IDS: List[int] = list(range(1, 17)) + list(range(18, 32))  # 1-16 + 18-31
 # IMG_IDS: List[int] = [17] #有点bug wralu的问题 直接忽略
@@ -35,6 +38,11 @@ def main() -> None:
             --netname "{os.path.abspath(MODEL_PATH)}"
             --output_dir "{os.path.abspath(SAVE_DIR)}"
             --timeout_AR 600
+            {
+                '' if USE_NORMALISED_DATASET
+                else '--mean 0 --std 1' if DATASET == "mnist"
+                else '--mean 0 0 0 --std 1 1 1'
+            }
 
             {f'--use_wralu "{SOLVER_MODE}"' if SOLVER_MODE != "original" else ""}
             --epsilon "{EPSILON}"
