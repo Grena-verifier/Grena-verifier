@@ -4,3 +4,6 @@
 *.pyt
 /models
 /experiment_scripts/results
+
+*.temp.*
+*.temp
