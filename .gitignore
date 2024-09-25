@@ -3,3 +3,4 @@
 *.onnx
 *.pyt
 /models
+/experiment_scripts/results
