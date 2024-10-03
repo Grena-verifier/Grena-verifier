@@ -3,10 +3,12 @@ import re
 import subprocess
 from typing import List, Literal
 
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
 VIRTUAL_ENV_PATH = "/home/yuyi/loris5/PRIMA/venv_3dot8/bin/activate"
 """Path to activate Python virtual env."""
 
-SAVE_DIR = "results/CConvBig/verify"
+SAVE_DIR = os.path.join(script_dir, "results/CConvBig/verify")
 """Directory to save results."""
 
 # Model related hyper-parameters.
@@ -14,7 +16,7 @@ DATASET: Literal["mnist", "cifar10"] = "cifar10"
 assert DATASET in ["mnist", "cifar10"], "This script isn't designed for datasets other than MNIST and CIFAR10."
 USE_NORMALISED_DATASET: bool = True
 
-MODEL_PATH = "../models/cifar10/convBigRELU__DiffAI.onnx"
+MODEL_PATH = os.path.join(script_dir, "../models/cifar10/convBigRELU__DiffAI.onnx")
 IMG_IDS: List[int] = [0,12,13,17,20,32,33,45,47,49,55,65,71,80,88,91,97,101,102,103,104,115,119,130,132,145,155,163,165,174]
 SPARSE_N: int = 50
 K: int = 3
@@ -27,8 +29,9 @@ model_name = os.path.splitext(os.path.basename(MODEL_PATH))[0]
 def main() -> None:
     for img in IMG_IDS:
         command = f"""
+        cd "{script_dir}";
+        cd "../tf_verify";
         source "{os.path.abspath(VIRTUAL_ENV_PATH)}";
-        cd {os.path.abspath("../tf_verify")};
         python Grena_runone_image.py
             --domain refinepoly
             --GRENA True
