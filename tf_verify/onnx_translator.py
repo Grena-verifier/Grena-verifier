@@ -477,17 +477,17 @@ class ONNXTranslator:
 			if extract_norm and node_idx <= stop_norm_layer and len(operation_types) == 2 and node.op_type in ["Add", "Sub", "Mul", "Div"] and node.output[0] not in self.constants_map:
 				constant = self.add_resources(node)[0].reshape(-1)
 				if node.op_type == "Add":
-					mean = np.multiply(constant, -1)
-					print(f"FYI: Network has norm layer(s) with mean={mean}.")
+					config.mean = np.multiply(constant, -1)
+					print(f"Mean of {config.mean} extracted from network")
 				elif node.op_type == "Sub":
-					mean = constant
-					print(f"FYI: Network has norm layer(s) with mean={mean}.")
+					config.mean = constant
+					print(f"Mean of {config.mean} extracted from network")
 				elif node.op_type == "Mul":
-					std = np.divide(1, constant)
-					print(f"FYI: Network has norm layer(s) with std={std}.")
+					config.std = np.divide(1, constant)
+					print(f"Std of {config.std} extracted from network")
 				elif node.op_type == "Div":
-					std = constant
-					print(f"FYI: Network has norm layer(s) with std={std}.")
+					config.std = constant
+					print(f"Std of {config.std} extracted from network")
 
 				self.ignore_node(node, operation_types, reshape_map)
 				continue

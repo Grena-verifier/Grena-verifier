@@ -475,7 +475,6 @@ if not is_trained_with_pytorch:
 is_trained_with_pytorch = is_trained_with_pytorch or is_onnx
 
 if config.mean is not None:
-    print(f"Manually setting means/stds to means={config.mean}, stds={config.std}")
     means = config.mean
     stds = config.std
 
