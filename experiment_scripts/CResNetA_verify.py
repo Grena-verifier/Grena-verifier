@@ -16,7 +16,7 @@ DATASET: Literal["mnist", "cifar10"] = "cifar10"
 assert DATASET in ["mnist", "cifar10"], "This script isn't designed for datasets other than MNIST and CIFAR10."
 USE_NORMALISED_DATASET: bool = False
 
-MODEL_PATH = os.path.join(script_dir, "../models/cifar10/convBigRELU__DiffAI.onnx")
+MODEL_PATH = os.path.join(script_dir, "../models/cifar10/resnet_3b2_bn_mixup_adv_4.0_bs128_lr-1.onnx")
 IMG_IDS: List[int] = [0,1,9,15,17,20,25,35,43,45,50,53,54,71,72,77,89,129,131,143,147,149,153,163,165,172,179,181,184,195]
 SPARSE_N: int = 50
 K: int = 3
