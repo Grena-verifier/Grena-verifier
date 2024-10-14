@@ -10,10 +10,10 @@ def relative_to_this_file(path: str) -> str:
 
 if __name__ == "__main__":
     run_bounds_experiment(
-        model_path=relative_to_this_file("../models/mnist/convSmallRELU__Point.onnx"),
-        dataset="mnist",
+        model_path=relative_to_this_file("../models/cifar10/resnet_3b2_bn_mixup_ssadv_4.0_bs128_lr-1_v2.onnx"),
+        dataset="cifar10",
         use_normalised_dataset=False,
-        epsilon=0.11,
-        img_id=75,
-        save_dir=relative_to_this_file("results/MConvSmall/bounds"),
+        epsilon=0.012,
+        img_id=79,
+        save_dir=relative_to_this_file("results/CResNetB/bounds"),
     )
