@@ -14,6 +14,6 @@ if __name__ == "__main__":
         dataset="mnist",
         use_normalised_dataset=False,
         epsilon=0.1,
-        img_ids=list(range(0, 16)) + list(range(17, 31)),
+        img_ids=[0,1,2,3,4,5,7,9,10,11,12,13,14,17,18,19,20,21,22,23,24,26,27,28,29,30,35,37,40,47],
         save_dir=relative_to_this_file("results/MConvMed/verify"),
     )  # fmt: skip
