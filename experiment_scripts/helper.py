@@ -24,9 +24,15 @@ def run_bounds_experiment(
     save_dir: str,
 ) -> None:
     assert dataset in ["mnist", "cifar10"], "This script isn't designed for datasets other than MNIST and CIFAR10."
+    log_path = os.path.join(save_dir, "terminal.log")
     model_name = os.path.splitext(os.path.basename(model_path))[0]
     save_file_name = (
-        model_name + f"_epsilon={epsilon}" + f"_imgid={img_id}" + "_domain=refinepoly" + f"_solver={SOLVER_MODE}" + ".pkl"
+        model_name
+        + f"_epsilon={epsilon}"
+        + f"_imgid={img_id}"
+        + "_domain=refinepoly"
+        + f"_solver={SOLVER_MODE}"
+        + ".pkl"
     )
 
     command = f"""
@@ -51,11 +57,13 @@ def run_bounds_experiment(
         --sparse_n "{SPARSE_N}"
         --k "{K}"
         --s "{S}"
-        >> "{os.path.join(save_dir, "terminal.log")}" 2>&1
+        >> "{log_path}" 2>&1
     ;
     """
     command = re.sub(r"\n\s*", " ", command).strip()
-    print(f"Running:\n{command}")
+    os.makedirs(os.path.dirname(log_path), exist_ok=True)
+    with open(log_path, "a") as f:
+        f.write(f"Running:\n{command}\n")
     subprocess.run(command, shell=True, executable="/bin/bash")
 
 
@@ -68,6 +76,7 @@ def run_verification_experiment(
     save_dir: str,
 ) -> None:
     assert dataset in ["mnist", "cifar10"], "This script isn't designed for datasets other than MNIST and CIFAR10."
+    log_path = os.path.join(save_dir, "terminal.log")
 
     for img in img_ids:
         command = f"""
@@ -93,9 +102,11 @@ def run_verification_experiment(
             --sparse_n "{SPARSE_N}"
             --k "{K}"
             --s "{S}"
-            >> "{os.path.join(save_dir, "terminal.log")}" 2>&1
+            >> "{log_path}" 2>&1
         ;
         """
         command = re.sub(r"\n\s*", " ", command).strip()
-        print(f"Running:\n{command}")
+        os.makedirs(os.path.dirname(log_path), exist_ok=True)
+        with open(log_path, "a") as f:
+            f.write(f"Running:\n{command}\n")
         subprocess.run(command, shell=True, executable="/bin/bash")
