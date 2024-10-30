@@ -77,7 +77,7 @@ def parse_verify_result(csv_result_path: str, output_path: str) -> None:
             result = row[6]
             assert result in ["Verified", "Unknown", "Falsified"]
 
-            csv_writer.writerow([img_id, result, time])
+            csv_writer.writerow([img_id, result.lower(), time])
 
             # Update totals for averages and counts
             total_time += time
