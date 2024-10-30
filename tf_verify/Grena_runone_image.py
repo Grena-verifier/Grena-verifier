@@ -522,7 +522,7 @@ for i, test in enumerate(tests):
     if config.num_tests is not None and i >= config.from_test + config.num_tests:
         break
 
-    if args.imgid is not None and i is not args.imgid:
+    if args.imgid is not None and i != args.imgid:
         continue
     elif args.imgid is not None and i == args.imgid:
         print("verify for single image id!!!!!!!!!!!!!!!!!", args.imgid)
