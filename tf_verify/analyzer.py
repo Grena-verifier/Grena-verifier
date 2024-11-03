@@ -42,6 +42,8 @@ import gurobipy as gp
 import os
 import multiprocessing
 
+from ml_bound_solver.src.training.TrainingConfig import TrainingConfig
+
 
 def dump_solver_inputs(
     lbounds: List[np.ndarray],
@@ -644,6 +646,7 @@ class Analyzer:
                                                             solver_inputs,
                                                             device=torch.device("cuda"),
                                                             return_solver=True,
+                                                            training_config=TrainingConfig(disable_adv_check=True),
                                                         )
                 execution_time = time.time() - start_time
                 write_self_lbs = [tailored_lb.reshape(-1) for tailored_lb in tailored_lbs]
