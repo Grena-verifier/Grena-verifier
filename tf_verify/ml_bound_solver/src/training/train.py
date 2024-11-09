@@ -62,7 +62,7 @@ def train(solver: Solver, config: TrainingConfig = TrainingConfig()) -> Tuple[bo
 
         # If loss deviates too far from best loss, training is considered failed
         # and starting LR should be reduced to make the training more stable.
-        if loss_float > 10 * min_loss:
+        if loss_float > 20 * min_loss:
             print(
                 f"\nCurrent loss {loss_float:.2e} deviated too far from min loss {min_loss:.2e}. Stopping training..."
             )
@@ -92,7 +92,7 @@ def train(solver: Solver, config: TrainingConfig = TrainingConfig()) -> Tuple[bo
         pbar.update()
 
         if early_stop_handler.is_early_stopped(current_lr):
-            pbar.set_description(f"Training stopped at epoch {epoch}, Loss: {loss_float}")
+            pbar.set_description(f"Training stopped at epoch {epoch}, Loss: {loss_float:.1f}, Min Loss: {min_loss:.1f}")
             pbar.close()
             break
 
