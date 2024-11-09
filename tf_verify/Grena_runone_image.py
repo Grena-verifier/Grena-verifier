@@ -281,6 +281,10 @@ def init_domain(d):
 
 
 def timeout_handler(signum, frame):
+    try:
+        logging.shutdown()  # Logging can prevent timeout, so clean up logging before raising timeout
+    except:
+        pass  # Ignore any errors during logging cleanup
     raise TimeoutError("Operation timed out!")
 
 signal.signal(signal.SIGALRM, timeout_handler)
