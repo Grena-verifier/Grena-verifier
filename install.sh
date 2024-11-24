@@ -77,7 +77,6 @@ export PATH="${PATH}:/usr/lib:${GUROBI_HOME}/bin"
 export CPATH="${CPATH}:${GUROBI_HOME}/include"
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib:/usr/local/lib:${GUROBI_HOME}/lib
 
-git clone https://github.com/eth-sri/ELINA.git
 cd ELINA
 if test "$has_cuda" -eq 1
 then
