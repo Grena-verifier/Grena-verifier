@@ -4,7 +4,6 @@ import re
 import subprocess
 from typing import List, Literal
 
-VIRTUAL_ENV_PATH = "/home/yuyi/loris5/PRIMA/venv_3dot8/bin/activate"  # Path to activate Python virtual env.
 
 # ERAN related hyperparams.
 SPARSE_N: int = 50
@@ -23,6 +22,7 @@ def run_bounds_experiment(
     epsilon: float,
     img_id: int,
     save_dir: str,
+    python_executable: str = "python3",  # Path to python executable
 ) -> None:
     assert dataset in ["mnist", "cifar10"], "This script isn't designed for datasets other than MNIST and CIFAR10."
     log_path = os.path.join(save_dir, "terminal.log")
@@ -37,10 +37,9 @@ def run_bounds_experiment(
     )
 
     command = f"""
-    source "{VIRTUAL_ENV_PATH}";
     cd "{os.path.join(script_dir, "../tf_verify")}";
     mkdir -p "{save_dir}";
-    python Grena_runone_image.py
+    '{python_executable}' Grena_runone_image.py
         --domain refinepoly
         --dataset "{dataset}"
         --netname "{model_path}"
@@ -75,13 +74,16 @@ def run_verification_experiment(
     epsilon: float,
     img_ids: List[int],
     save_dir: str,
+    python_executable: str = "python3",  # Path to python executable
 ) -> None:
     assert dataset in ["mnist", "cifar10"], "This script isn't designed for datasets other than MNIST and CIFAR10."
     results_path = os.path.join(save_dir, "GRENA_verification_result.csv")
 
     write_results_csv_header(results_path)
     for img_id in img_ids:
-        verify_image_using_grena(model_path, dataset, use_normalised_dataset, epsilon, img_id, save_dir)
+        verify_image_using_grena(
+            model_path, dataset, use_normalised_dataset, epsilon, img_id, save_dir, python_executable
+        )
     append_results_summary(results_path)
 
 
@@ -157,13 +159,13 @@ def verify_image_using_grena(
     epsilon: float,
     img_id: int,
     save_dir: str,
+    python_executable: str,
 ) -> None:
     log_path = os.path.join(save_dir, "terminal.log")
     command = f"""
-    source "{VIRTUAL_ENV_PATH}";
     cd "{os.path.join(script_dir, "../tf_verify")}";
     mkdir -p "{save_dir}";
-    python Grena_runone_image.py
+    '{python_executable}' Grena_runone_image.py
         --domain refinepoly
         --GRENA True
         --dataset "{dataset}"
