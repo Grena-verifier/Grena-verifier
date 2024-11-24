@@ -113,24 +113,26 @@ def append_results_summary(results_path: str) -> None:
     verified_times = [t for r, t in data if r == "verified"]
     falsified_times = [t for r, t in data if r == "falsified"]
 
+    total_num = len(data)
     num_unknown = len(unknown_times)
     num_verified = len(verified_times)
     num_falsified = len(falsified_times)
 
     total_time = sum(t for _, t in data)
-    avg_time = total_time / len(data)
-
-    # Average time for verified/falsified (excluding unknown)
-    verified_falsified_times = verified_times + falsified_times
-    avg_time_verified_falsified = sum(verified_falsified_times) / len(verified_falsified_times)
+    avg_time = total_time / total_num if total_num > 0 else -1
 
     # Average times for each category
-    avg_time_unknown = sum(unknown_times) / len(unknown_times)
-    avg_time_verified = sum(verified_times) / len(verified_times)
-    avg_time_falsified = sum(falsified_times) / len(falsified_times)
+    verified_falsified_times = verified_times + falsified_times
+    avg_time_verified_falsified = (
+        sum(verified_falsified_times) / len(verified_falsified_times) if num_verified + num_falsified > 0 else -1
+    )
+    avg_time_unknown = sum(unknown_times) / num_unknown if num_unknown > 0 else -1
+    avg_time_verified = sum(verified_times) / num_verified if num_verified > 0 else -1
+    avg_time_falsified = sum(falsified_times) / num_falsified if num_falsified > 0 else -1
 
     # Prepare summary lines
     summary_rows = [
+        ["Total num. of rows:", total_num],
         ["Num. of unknown:", num_unknown],
         ["Num. of verified:", num_verified],
         ["Num. of falsified:", num_falsified],
