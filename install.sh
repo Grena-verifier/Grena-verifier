@@ -18,46 +18,6 @@ while : ; do
 done
 
 
-#wget ftp://ftp.gnu.org/pub/gnu/m4/m4-1.4.18.tar.gz
-#tar -xvzf m4-1.4.18.tar.gz
-#cd m4-1.4.18
-#./configure
-#make
-#make install
-#cp src/m4 /usr/bin
-#cd ..
-#rm m4-1.4.18.tar.gz
-
-
-
-wget https://gmplib.org/download/gmp/gmp-6.1.2.tar.xz
-tar -xvf gmp-6.1.2.tar.xz
-cd gmp-6.1.2
-./configure --enable-cxx
-make
-make install
-cd ..
-rm gmp-6.1.2.tar.xz
-
-
-
-wget https://files.sri.inf.ethz.ch/eran/mpfr/mpfr-4.1.0.tar.xz
-tar -xvf mpfr-4.1.0.tar.xz
-cd mpfr-4.1.0
-./configure
-make
-make install
-cd ..
-rm mpfr-4.1.0.tar.xz
-
-wget https://github.com/cddlib/cddlib/releases/download/0.94m/cddlib-0.94m.tar.gz
-tar zxf cddlib-0.94m.tar.gz
-cd cddlib-0.94m
-./configure
-make
-make install
-cd ..
-
 wget https://packages.gurobi.com/9.1/gurobi9.1.2_linux64.tar.gz
 tar -xvf gurobi9.1.2_linux64.tar.gz
 cd gurobi912/linux64/src/build
