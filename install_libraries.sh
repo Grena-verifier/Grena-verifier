@@ -64,6 +64,10 @@ export PATH="${PATH}:${GUROBI_HOME}/bin"
 export CPATH="${CPATH}:${GUROBI_HOME}/include"
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${GUROBI_HOME}/lib:/usr/local/lib
 
+if [ ! -L "/usr/local/include/gurobi_c.h" ]; then
+   ln -s ${GUROBI_HOME}/include/gurobi_c.h /usr/local/include/gurobi_c.h
+fi
+
 if ! grep -q "GUROBI_HOME" ~/.bashrc; then
     echo "Adding Gurobi environment variables to ~/.bashrc"
     echo "export GUROBI_HOME=\"$(pwd)/gurobi912/linux64\"" >> ~/.bashrc
