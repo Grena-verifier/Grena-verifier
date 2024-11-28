@@ -11,6 +11,7 @@ import pandas as pd
 CUTOFF_THRESHOLD: Optional[float] = 1e-5  # Remove neurons which has < threshold absolute Gurobi improvement
 SHOW_OUTLIERS: bool = True  # Whether to show outliers in boxplots
 RESULTS_DIR = "/home/shauntan/eran/experiment_scripts/results"
+OUTPUT_DIR = "./parsed_results"
 MODEL_NAMES: List[str] = [
     "CConvBig",
     "CResNetA",
@@ -19,14 +20,13 @@ MODEL_NAMES: List[str] = [
     "MConvSmall",
 ]
 
-
 def main():
-    if not os.path.exists("./parsed_results"):
-        os.makedirs("./parsed_results")
+    if not os.path.exists(OUTPUT_DIR):
+        os.makedirs(OUTPUT_DIR)
 
     for model_name in MODEL_NAMES:
         # verify_csv_path = get_verify_csv_path(RESULTS_DIR, model_name)
-        # output_path = f"./parsed_results/{model_name}_verify_summary.csv"
+        # output_path = os.path.join(OUTPUT_DIR, f"{model_name}_verify_summary.csv")
         # parse_verify_result(verify_csv_path, output_path)
         bounds_pkl_path = get_bounds_pkl_path(RESULTS_DIR, model_name)
         bounds = mask_bounds(*load_bounds_results(bounds_pkl_path))
@@ -223,7 +223,7 @@ def plot_bounds_diff(
     plt.ylabel("")
     plt.show()
 
-    # Remove differences < CUTOFF_THRESHOLD
+    # Remove differences <= CUTOFF_THRESHOLD
     if CUTOFF_THRESHOLD is not None:
         ubs_cutoff_mask = np.abs(diff3) > CUTOFF_THRESHOLD
         lbs_cutoff_mask = np.abs(diff4) > CUTOFF_THRESHOLD
@@ -274,7 +274,7 @@ def plot_bounds_improvement(
     plt.ylabel("Improvement")
     plt.show()
 
-    # Remove differences < CUTOFF_THRESHOLD
+    # Remove improvement <= CUTOFF_THRESHOLD
     if CUTOFF_THRESHOLD is not None:
         mask = np.abs(gurobi_improvement) > CUTOFF_THRESHOLD
         gurobi_improvement = gurobi_improvement[mask]
