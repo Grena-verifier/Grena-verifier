@@ -2,7 +2,7 @@
 set -e
 
 print_usage() {
-    echo "Usage: $0 [OPTIONS]"
+    echo "Usage: sudo ./$0 [OPTIONS]"
     echo "Options:"
     echo "  -c, --use-cuda      Whether to install with CUDA support"
     echo "  -h, --help          Display this help message"
@@ -25,6 +25,22 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+# Check if user ran this script with sudo/root permission
+if [ "$EUID" -ne 0 ]; then
+    echo "WARNING: Not running with sudo/root permission."
+    read -p "You may encounter problems installing the dependencies. Continue? (Y/N) " -n 1 -r
+    echo    # Move to a new line
+    while ! [[ $REPLY =~ ^[YyNn]$ ]]; do
+        read -p "Please enter Y or N: " -n 1 -r
+        echo
+    done
+
+    if [[ $REPLY =~ ^[Nn]$ ]]; then
+        echo "Operation cancelled."
+        exit 1
+    fi
+fi
 
 bash install_libraries.sh
 
