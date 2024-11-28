@@ -14,8 +14,12 @@ RESULTS_DIR = "/home/shauntan/eran/experiment_scripts/results"
 OUTPUT_DIR = "./parsed_results"
 MODEL_NAMES: List[str] = [
     "CConvBig",
+    "CConvMed",
+    "CResNet4B",
     "CResNetA",
+    "CResNetB",
     "M6x256",
+    "MConvBig",
     "MConvMed",
     "MConvSmall",
 ]
