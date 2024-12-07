@@ -281,10 +281,7 @@ def init_domain(d):
 
 
 def timeout_handler(signum, frame):
-    try:
-        logging.shutdown()  # Logging can prevent timeout, so clean up logging before raising timeout
-    except:
-        pass  # Ignore any errors during logging cleanup
+    print("Timing out...")
     raise TimeoutError("Operation timed out!")
 
 signal.signal(signal.SIGALRM, timeout_handler)
@@ -538,10 +535,25 @@ for i, test in enumerate(tests):
     # check if the clean image can be classified correctly
     is_correctly_classified = False
     start = time.time()
+    has_stopped = False
 
     try:
         if args.timeout_AR != -1:
             signal.alarm(int(args.timeout_AR))  # Start timeout timer
+
+            # Create a background thread that spams timeout alarm until the code actually terminates.
+            # This is becuz `Analyzer.generate_krelu_cons` can sometimes ignore the timeout exception.
+            def reset_alarm():
+                overall_timeout = time.time() + args.timeout_AR  # When we should stop completely
+
+                while not has_stopped:
+                    if time.time() >= overall_timeout:
+                        signal.alarm(1)  # Reset alarm every 3 seconds
+                    time.sleep(2)
+
+            import threading
+            alarm_thread = threading.Thread(target=reset_alarm, daemon=True)
+            alarm_thread.start()
 
         if domain == 'gpupoly' or domain == 'refinegpupoly':
             is_correctly_classified = network.test(specLB, specUB, int(test[0]), True)
@@ -652,6 +664,11 @@ for i, test in enumerate(tests):
                         unsafe_images += 1
             end = time.time()
             cum_time += end - start # only count samples where we did try to certify
+
+            # Set status to unknown if the code somehow completes beyond the timeout timing.
+            if end - start > int(args.timeout_AR):
+                status = "Unknown"
+
             if config.GRENA:
                 with open(os.path.join(config.output_dir, GRENA_RESULT_FILENAME), 'a+', newline='') as f:
                     csv_writer = csv.writer(f)
@@ -662,6 +679,7 @@ for i, test in enumerate(tests):
             end = time.time()
 
     except TimeoutError:
+        has_stopped = True
         end = time.time()
         status = "Unknown"
         unsafe_images += 1
@@ -676,6 +694,7 @@ for i, test in enumerate(tests):
         except NameError:
             print("img", i, 'Time out with unknown result. "label" variable has not been initialised yet.')
     finally:
+        has_stopped = True
         if args.timeout_AR != -1:
             signal.alarm(0)  # Clear timeout timer
 
