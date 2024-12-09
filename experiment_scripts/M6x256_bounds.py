@@ -15,6 +15,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     run_bounds_experiment(
+        model_display_name="M6x256",
         model_path=relative_to_this_file("../models/mnist/mnist-net_256x6.onnx"),
         dataset="mnist",
         use_normalised_dataset=False,

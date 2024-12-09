@@ -1,8 +1,15 @@
 import csv
 import os
+import pickle
 import re
 import subprocess
-from typing import List, Literal
+from typing import List, Literal, Tuple, Dict
+from typing_extensions import TypeAlias
+
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 
 # ERAN related hyperparams.
@@ -11,11 +18,81 @@ K: int = 3
 S: int = 1
 SOLVER_MODE: Literal["original", "sci", "sciplus", "sciall"] = "sciplus"
 
+# Bounds-experiment boxplot params.
+ModelName: TypeAlias = Literal[
+    "CConvMed",
+    "CResNet4B",
+    "CResNetA",
+    "CResNetB",
+    "M6x256",
+    "MConvBig",
+    "MConvMed",
+    "MConvSmall",
+]
+MODEL_CUTOFF_THRESHOLDS: Dict[ModelName, float] = {
+    "CConvMed": 1e-2,
+    "CResNet4B": 1e-5,
+    "CResNetA": 1e-5,
+    "CResNetB": 1e-5,
+    "M6x256": 1e-5,
+    "MConvBig": 5e-2,
+    "MConvMed": 5e-3,
+    "MConvSmall": 1e-5,
+}
+SHOW_OUTLIERS: bool = True  # Whether to show outliers in boxplots
 
 script_dir = os.path.dirname(os.path.abspath(__file__))  # Directory of this file.
 
 
 def run_bounds_experiment(
+    model_display_name: ModelName,
+    model_path: str,
+    dataset: Literal["mnist", "cifar10"],
+    use_normalised_dataset: bool,
+    epsilon: float,
+    img_id: int,
+    save_dir: str,
+    python_executable: str = "python3",  # Path to python executable
+) -> None:
+    assert model_display_name in MODEL_CUTOFF_THRESHOLDS
+    generate_bounds_pickle_file(
+        model_path, dataset, use_normalised_dataset, epsilon, img_id, save_dir, python_executable
+    )
+    bounds_pkl_path = get_bounds_pkl_path(save_dir)
+    bounds = mask_bounds(*load_bounds_results(bounds_pkl_path))
+    cutoff_threshold = MODEL_CUTOFF_THRESHOLDS[model_display_name]
+    plot_and_save_bounds_improvement(
+        model_display_name,
+        *bounds,
+        img_save_path=os.path.join(save_dir, f"bounds_improvement_plot_cutoff={cutoff_threshold:e}.jpg"),
+        cutoff_threshold=cutoff_threshold,
+    )
+
+
+def run_verification_experiment(
+    model_path: str,
+    dataset: Literal["mnist", "cifar10"],
+    use_normalised_dataset: bool,
+    epsilon: float,
+    img_ids: List[int],
+    save_dir: str,
+    python_executable: str = "python3",  # Path to python executable
+) -> None:
+    assert dataset in ["mnist", "cifar10"], "This script isn't designed for datasets other than MNIST and CIFAR10."
+    results_path = os.path.join(save_dir, "GRENA_verification_result.csv")
+
+    write_results_csv_header(results_path)
+    for img_id in img_ids:
+        verify_image_using_grena(
+            model_path, dataset, use_normalised_dataset, epsilon, img_id, save_dir, python_executable
+        )
+    append_results_summary(results_path)
+
+
+# ===============================================================================
+#                     Bounds experiment's helper functions
+# ===============================================================================
+def generate_bounds_pickle_file(
     model_path: str,
     dataset: Literal["mnist", "cifar10"],
     use_normalised_dataset: bool,
@@ -67,26 +144,125 @@ def run_bounds_experiment(
     subprocess.run(command, shell=True, executable="/bin/bash")
 
 
-def run_verification_experiment(
-    model_path: str,
-    dataset: Literal["mnist", "cifar10"],
-    use_normalised_dataset: bool,
-    epsilon: float,
-    img_ids: List[int],
-    save_dir: str,
-    python_executable: str = "python3",  # Path to python executable
+def get_bounds_pkl_path(save_dir: str) -> str:
+    """Get the pickle file path for a bounds result."""
+    pkl_files = [f for f in os.listdir(save_dir) if f.endswith(".pkl")]
+    assert len(pkl_files) == 1, f'Expected exactly one .pkl file, found {len(pkl_files)} in "{save_dir}".'
+    return os.path.join(save_dir, pkl_files[0])
+
+
+def load_bounds_results(pkl_result_path: str) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, List[np.ndarray], List[np.ndarray]]:  # fmt: skip
+    """Load pickle file for a bounds result as flattened HWC-format numpy arrays."""
+    with open(pkl_result_path, "rb") as file:
+        _ = pickle.load(file)
+
+    gurobi_flattened_lbs = np.concatenate([x.flatten() for x in _["gurobi_lbs"]])
+    gurobi_flattened_ubs = np.concatenate([x.flatten() for x in _["gurobi_ubs"]])
+    ori_flattened_lbs = np.concatenate([x.flatten() for x in _["IOIL_lbs"]])
+    ori_flattened_ubs = np.concatenate([x.flatten() for x in _["IOIL_ubs"]])
+
+    # Convert tailored bounds from CHW -> HWC if they're are 3D.
+    # Gurobi/Original bounds are in HWC, but tailored bounds uses Pytorch's CHW format.
+    tailored_lbs = _["tailored_lbs"]
+    tailored_ubs = _["tailored_ubs"]
+    for i, (lbs, ubs) in enumerate(zip(tailored_lbs, tailored_ubs)):
+        if lbs.ndim == 3:
+            tailored_lbs[i] = np.transpose(lbs, (1, 2, 0))
+            tailored_ubs[i] = np.transpose(ubs, (1, 2, 0))
+    tailored_flattened_lbs = np.concatenate([x.flatten() for x in tailored_lbs])
+    tailored_flattened_ubs = np.concatenate([x.flatten() for x in tailored_ubs])
+
+    assert gurobi_flattened_lbs.shape == gurobi_flattened_ubs.shape == tailored_flattened_lbs.shape == tailored_flattened_ubs.shape == ori_flattened_lbs.shape == ori_flattened_ubs.shape  # fmt: skip
+    return (
+        gurobi_flattened_lbs,
+        gurobi_flattened_ubs,
+        tailored_flattened_lbs,
+        tailored_flattened_ubs,
+        ori_flattened_lbs,
+        ori_flattened_ubs,
+        _["IOIL_lbs"],
+        _["IOIL_ubs"],
+    )
+
+
+def mask_bounds(
+    gurobi_flattened_lbs: np.ndarray,
+    gurobi_flattened_ubs: np.ndarray,
+    tailored_flattened_lbs: np.ndarray,
+    tailored_flattened_ubs: np.ndarray,
+    ori_flattened_lbs: np.ndarray,
+    ori_flattened_ubs: np.ndarray,
+    ori_lbs: List[np.ndarray],
+    ori_ubs: List[np.ndarray],
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Mask for all input neurons, only unstable intermediate neurons, and exclude output neurons."""
+    num_layers = len(ori_lbs)
+    intermediate_unstable_masks = np.concatenate(
+        [(ori_lbs[i] < 0) & (ori_ubs[i] > 0) for i in range(1, num_layers - 1)]
+    )
+    mask = np.concatenate(
+        [
+            np.full_like(ori_lbs[0], True, dtype=bool),
+            intermediate_unstable_masks,
+            np.full_like(ori_lbs[-1], False, dtype=bool),
+        ]
+    )
+    return (
+        gurobi_flattened_lbs[mask],
+        gurobi_flattened_ubs[mask],
+        tailored_flattened_lbs[mask],
+        tailored_flattened_ubs[mask],
+        ori_flattened_lbs[mask],
+        ori_flattened_ubs[mask],
+    )
+
+
+def plot_and_save_bounds_improvement(
+    model_display_name: str,
+    gurobi_flattened_lbs: np.ndarray,
+    gurobi_flattened_ubs: np.ndarray,
+    tailored_flattened_lbs: np.ndarray,
+    tailored_flattened_ubs: np.ndarray,
+    ori_flattened_lbs: np.ndarray,
+    ori_flattened_ubs: np.ndarray,
+    img_save_path: str,
+    cutoff_threshold: float = 1e-5,
 ) -> None:
-    assert dataset in ["mnist", "cifar10"], "This script isn't designed for datasets other than MNIST and CIFAR10."
-    results_path = os.path.join(save_dir, "GRENA_verification_result.csv")
+    os.makedirs(os.path.dirname(img_save_path), exist_ok=True)
 
-    write_results_csv_header(results_path)
-    for img_id in img_ids:
-        verify_image_using_grena(
-            model_path, dataset, use_normalised_dataset, epsilon, img_id, save_dir, python_executable
-        )
-    append_results_summary(results_path)
+    # Calculate improvements
+    gurobi_improvement = (ori_flattened_ubs - ori_flattened_lbs) - (gurobi_flattened_ubs - gurobi_flattened_lbs)
+    our_improvement = (ori_flattened_ubs - ori_flattened_lbs) - (tailored_flattened_ubs - tailored_flattened_lbs)
+    df = pd.DataFrame(
+        {
+            "Method": ["Gurobi"] * len(gurobi_improvement) + ["Our"] * len(our_improvement),
+            "Improvement": np.concatenate([gurobi_improvement, our_improvement]),
+        }
+    )
+
+    # Remove improvement <= cutoff_threshold
+    if cutoff_threshold is not None:
+        mask = np.abs(gurobi_improvement) > cutoff_threshold
+        gurobi_improvement = gurobi_improvement[mask]
+        our_improvement = our_improvement[mask]
+
+    df = pd.DataFrame(
+        {
+            "Method": ["Gurobi"] * len(gurobi_improvement) + ["Our"] * len(our_improvement),
+            "Improvement": np.concatenate([gurobi_improvement, our_improvement]),
+        }
+    )
+    plt.figure(figsize=(3, 5))
+    sns.boxplot(x="Method", y="Improvement", data=df, showfliers=SHOW_OUTLIERS)
+    plt.title(f"Bounds Improvement ({cutoff_threshold} cutoff)\n({model_display_name})")
+    plt.ylabel("Improvement")
+    plt.savefig(img_save_path, bbox_inches="tight", dpi=300)
+    plt.close()
 
 
+# ===============================================================================
+#                  Verification experiment's helper functions
+# ===============================================================================
 def write_results_csv_header(results_path: str) -> None:
     os.makedirs(os.path.dirname(results_path), exist_ok=True)
     with open(results_path, "w", newline="") as f:

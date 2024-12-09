@@ -15,6 +15,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     run_bounds_experiment(
+        model_display_name="CConvMed",
         model_path=relative_to_this_file("../models/cifar10/convMedGRELU__PGDK_w_0.0078.onnx"),
         dataset="cifar10",
         use_normalised_dataset=True,

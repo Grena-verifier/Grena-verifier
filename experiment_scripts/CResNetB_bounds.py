@@ -15,6 +15,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     run_bounds_experiment(
+        model_display_name="CResNetB",
         model_path=relative_to_this_file("../models/cifar10/resnet_3b2_bn_mixup_ssadv_4.0_bs128_lr-1_v2.onnx"),
         dataset="cifar10",
         use_normalised_dataset=False,

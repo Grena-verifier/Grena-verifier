@@ -15,6 +15,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     run_bounds_experiment(
+        model_display_name="MConvSmall",
         model_path=relative_to_this_file("../models/mnist/convSmallRELU__Point.onnx"),
         dataset="mnist",
         use_normalised_dataset=False,
