@@ -4,7 +4,7 @@ import pickle
 import re
 import subprocess
 import sys
-from typing import List, Literal, Tuple, Dict
+from typing import List, Literal, Optional, Tuple, Dict
 from typing_extensions import TypeAlias
 
 import numpy as np
@@ -62,7 +62,7 @@ def run_bounds_experiment(
     plot_and_save_bounds_improvement(
         model_display_name,
         *bounds,
-        img_save_path=os.path.join(save_dir, f"bounds_improvement_plot_cutoff={cutoff_threshold:e}.jpg"),
+        img_save_path=os.path.join(save_dir, f"bounds_improvement_plot_cutoff={cutoff_threshold}.jpg"),
         cutoff_threshold=cutoff_threshold,
     )
 
@@ -220,7 +220,7 @@ def plot_and_save_bounds_improvement(
     ori_flattened_lbs: np.ndarray,
     ori_flattened_ubs: np.ndarray,
     img_save_path: str,
-    cutoff_threshold: float = 1e-5,
+    cutoff_threshold: Optional[float] = None,
 ) -> None:
     os.makedirs(os.path.dirname(img_save_path), exist_ok=True)
 
