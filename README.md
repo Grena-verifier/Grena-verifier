@@ -82,16 +82,10 @@ Each model has two scripts in the `/experiment_scripts` directory:
 
 Scripts for CIFAR-10 models are prefixed with `C`, MNIST are prefixed with `M`.
 
-To run any of the experiments, simply run the corresponding script.
-
-> _**Note:** The scripts use the default Python interpreter _(NOT the current intepreter)_. To specify a different interpreter, use the `-p` or `--python-executable` flag._
+To run any of the experiments, simply run the corresponding script with Python.
 
 ```bash
-# Using default Python interpreter
 python CConvBig_verify.py
-
-# Using specific Python interpreter
-python CConvBig_verify.py -p /path/to/python/executable
 ```
 
 The results of all the experiments will be saved to the `experiment_scripts/results/[MODEL_NAME]/[verify|bounds]/` directory.

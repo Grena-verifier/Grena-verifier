@@ -1,4 +1,3 @@
-import argparse
 import os
 from helper import run_bounds_experiment
 
@@ -10,10 +9,6 @@ def relative_to_this_file(path: str) -> str:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-p", "--python-executable", type=str, default="python3", help="Path to Python executable")
-    args = parser.parse_args()
-
     run_bounds_experiment(
         model_display_name="MConvMed",
         model_path=relative_to_this_file("../models/mnist/convMedGRELU__Point.onnx"),
@@ -22,5 +17,4 @@ if __name__ == "__main__":
         epsilon=0.1,
         img_id=1,
         save_dir=relative_to_this_file("results/MConvMed/bounds"),
-        python_executable=args.python_executable,
     )
