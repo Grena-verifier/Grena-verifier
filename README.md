@@ -47,7 +47,7 @@ As well as these libaries:
 
 ## Running the Experiments
 
-### Supported Models
+### Models Tested
 
 We tested 9 models across CIFAR-10 and MNIST datasets:
 
@@ -73,7 +73,7 @@ This will download the models to the `/model` directory.
 
 <br>
 
-### Running Experiments
+### Experiment Scripts
 
 Each model has two scripts in the `/experiment_scripts` directory:
 
@@ -89,6 +89,15 @@ python CConvBig_verify.py
 ```
 
 The results of all the experiments will be saved to the `experiment_scripts/results/[MODEL_NAME]/[verify|bounds]/` directory.
+
+For all the experiments we've kept the below parameters constant to the values below:
+
+| Variable    | Value       | Description                                   |
+| ----------- | ----------- | --------------------------------------------- |
+| `sparse_n`  | `50`        | ERAN's number of variables to group by k-ReLU |
+| `k`         | `3`         | ERAN's refine group size                      |
+| `s`         | `1`         | ERAN's refine group sparsity parameter        |
+| `use_wralu` | `"sciplus"` | WraLU solver type                             |
 
 <br>
 
