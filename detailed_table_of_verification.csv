@@ -1,5 +1,5 @@
 ,,,WraLU,,AB-CROWN,,GRENA,
-Image index,Network,Epsilon,Result,Time,Result,Time,Result,Time
+Image index,Dataset / Network,Epsilon,Result,Time (seconds),Result,Time (seconds),Result,Time (seconds)
 0,cifar10 / convBigRELU__DiffAI,0.00784313725,verified,31.7,verified,22.4,verified,56.4
 12,cifar10 / convBigRELU__DiffAI,0.00784313725,verified,38.5,verified,1.7,verified,68.6
 13,cifar10 / convBigRELU__DiffAI,0.00784313725,verified,38.9,verified,11.3,verified,69.9

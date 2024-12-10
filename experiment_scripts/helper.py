@@ -252,7 +252,7 @@ def write_results_csv_header(results_path: str) -> None:
     with open(results_path, "w", newline="") as f:
         csv_writer = csv.writer(f)
         csv_writer.writerow(["", "", "", "GRENA", ""])
-        csv_writer.writerow(["Image index", "Network", "Epsilon", "Result", "Time"])
+        csv_writer.writerow(["Image index", "Dataset / Network", "Epsilon", "Result", "Time (seconds)"])
 
 
 def append_results_summary(results_path: str) -> None:
