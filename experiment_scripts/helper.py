@@ -97,15 +97,6 @@ def generate_bounds_pickle_file(
 ) -> None:
     assert dataset in ["mnist", "cifar10"], "This script isn't designed for datasets other than MNIST and CIFAR10."
     log_path = os.path.join(save_dir, "terminal.log")
-    model_name = os.path.splitext(os.path.basename(model_path))[0]
-    save_file_name = (
-        model_name
-        + f"_epsilon={epsilon}"
-        + f"_imgid={img_id}"
-        + "_domain=refinepoly"
-        + f"_solver={SOLVER_MODE}"
-        + ".pkl"
-    )
 
     command = f"""
     cd "{os.path.join(script_dir, "../tf_verify")}";
@@ -115,7 +106,6 @@ def generate_bounds_pickle_file(
         --dataset "{dataset}"
         --netname "{model_path}"
         --output_dir "{save_dir}"
-        --bounds_save_filename "{save_file_name}"
         --epsilon "{epsilon}"
         --imgid "{img_id}"
         {

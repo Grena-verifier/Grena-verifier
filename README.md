@@ -115,4 +115,3 @@ The `tf_verify/Grena_runone_image.py` script provides a command-line interface f
 | `use_wralu`            | WraLU solver type<br>If not specified, uses the default `fkrelu` solver                  | `sci`, `sciplus`, `sciall`                       |
 | `GRENA`                | Enable/Disable the GRENA refinement process                                              | Boolean<br>_(default: False)_                    |
 | `timeout_AR`           | Timeout in seconds for abstract refinement                                               | Float _(-1 disables timeout)_<br>_(default: -1)_ |
-| `bounds_save_filename` | Bounds output file name                                                                  | -                                                |

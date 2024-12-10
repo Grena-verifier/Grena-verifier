@@ -343,7 +343,6 @@ parser.add_argument("--approx_k", type=str2bool, default=config.approx_k, help="
 parser.add_argument('--logdir', type=str, default=None, help='Location to save logs to. If not specified, logs are not saved and emitted to stdout')
 parser.add_argument('--logname', type=str, default=None, help='Directory of log files in `logdir`, if not specified timestamp is used')
 parser.add_argument('--output_dir', type=str, default=config.output_dir, help='Directory of all output files')
-parser.add_argument('--bounds_save_filename', type=str, default=config.bounds_save_filename, help='Save file path for Gurobi-solved bounds')
 parser.add_argument('--use_wralu', type=str, default=config.use_wralu, help='Type of WraLU solver to use: "sci", "sciplus" or "sciall". If not specified, default to using original `fkrelu` solver (ie. don\'t use WraLU).')
 
 
@@ -361,7 +360,8 @@ if config.specnumber and not config.input_box and not config.output_constraints:
 
 assert config.netname, 'a network has to be provided for analysis.'
 
-bounds_save_path = os.path.join(config.output_dir, config.bounds_save_filename)
+model_name = os.path.splitext(os.path.basename(config.netname))[0]
+bounds_save_path = os.path.join(config.output_dir, f"{model_name}_epsilon={config.epsilon}_imgid={args.imgid}.pkl")
 bounds_save_path = os.path.abspath(bounds_save_path)
 os.makedirs(config.output_dir, exist_ok=True)
 
