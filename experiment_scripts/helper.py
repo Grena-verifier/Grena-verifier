@@ -56,6 +56,7 @@ def run_bounds_experiment(
 ) -> None:
     assert model_display_name in MODEL_CUTOFF_THRESHOLDS
     generate_bounds_pickle_file(model_path, dataset, use_normalised_dataset, epsilon, img_id, save_dir)
+    extract_runtimes_into_csv(save_dir, model_display_name)
     bounds_pkl_path = get_bounds_pkl_path(save_dir)
     bounds = mask_bounds(*load_bounds_results(bounds_pkl_path))
     cutoff_threshold = MODEL_CUTOFF_THRESHOLDS[model_display_name]
@@ -126,6 +127,23 @@ def generate_bounds_pickle_file(
     with open(log_path, "a") as f:
         f.write(f"Running:\n{command}\n")
     subprocess.run(command, shell=True, executable="/bin/bash")
+
+
+def extract_runtimes_into_csv(save_dir: str, model_display_name: str) -> None:
+    """Extract Gurobi and Tailored solver runtimes from log file and save to CSV."""
+    with open(f"{save_dir}/log", "r") as f:
+        log_content = f.read()
+
+    gurobi_match = re.search(r"Gurobi: (\d+\.\d+)", log_content)
+    tailored_match = re.search(r"Tailored solver: (\d+\.\d+)", log_content)
+    assert gurobi_match is not None and tailored_match is not None
+    gurobi_time_str = gurobi_match.group(1)
+    tailored_time_str = tailored_match.group(1)
+
+    with open(f"{save_dir}/runtimes.csv", "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["Network", "Gurobi runtime (seconds)", "Tailored solver runtime (seconds)"])
+        writer.writerow([model_display_name, gurobi_time_str, tailored_time_str])
 
 
 def get_bounds_pkl_path(save_dir: str) -> str:
