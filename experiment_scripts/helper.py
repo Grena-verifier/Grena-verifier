@@ -63,7 +63,7 @@ def run_bounds_experiment(
     plot_and_save_bounds_improvement(
         model_display_name,
         *bounds,
-        img_save_path=os.path.join(save_dir, f"bounds_improvement_plot_cutoff={cutoff_threshold}.jpg"),
+        img_save_path=os.path.join(save_dir, f"RESULT_bounds_improvement_plot_cutoff={cutoff_threshold}.jpg"),
         cutoff_threshold=cutoff_threshold,
     )
 
@@ -77,7 +77,9 @@ def run_verification_experiment(
     save_dir: str,
 ) -> None:
     assert dataset in ["mnist", "cifar10"], "This script isn't designed for datasets other than MNIST and CIFAR10."
-    results_path = os.path.join(save_dir, "GRENA_verification_result.csv")
+    results_path = os.path.join(
+        save_dir, "RESULT_GRENA_verification.csv"
+    )  # defined in `tf_verify/Grena_runone_image.py`
 
     write_results_csv_header(results_path)
     for img_id in img_ids:
@@ -140,7 +142,7 @@ def extract_runtimes_into_csv(save_dir: str, model_display_name: str) -> None:
     gurobi_time_str = gurobi_match.group(1)
     tailored_time_str = tailored_match.group(1)
 
-    with open(f"{save_dir}/runtimes.csv", "w", newline="") as f:
+    with open(f"{save_dir}/RESULT_solver_runtimes.csv", "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["Network", "Gurobi runtime (seconds)", "Tailored solver runtime (seconds)"])
         writer.writerow([model_display_name, gurobi_time_str, tailored_time_str])

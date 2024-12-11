@@ -509,7 +509,7 @@ def init(args):
     failed_already = args
 
 correct_list = []     
-GRENA_RESULT_FILENAME = "GRENA_verification_result.csv"
+GRENA_RESULT_FILENAME = "RESULT_GRENA_verification.csv"
 
 IOIL_lbs, IOIL_ubs = [], []
 
