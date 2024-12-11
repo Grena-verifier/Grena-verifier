@@ -55,7 +55,7 @@ def run_bounds_experiment(
     save_dir: str,
 ) -> None:
     assert model_display_name in MODEL_CUTOFF_THRESHOLDS
-    generate_bounds_pickle_file(model_path, dataset, use_normalised_dataset, epsilon, img_id, save_dir)
+    generate_bounds_result(model_path, dataset, use_normalised_dataset, epsilon, img_id, save_dir)
     extract_runtimes_into_csv(save_dir, model_display_name)
     bounds_pkl_path = get_bounds_pkl_path(save_dir)
     bounds = mask_bounds(*load_bounds_results(bounds_pkl_path))
@@ -88,7 +88,7 @@ def run_verification_experiment(
 # ===============================================================================
 #                     Bounds experiment's helper functions
 # ===============================================================================
-def generate_bounds_pickle_file(
+def generate_bounds_result(
     model_path: str,
     dataset: Literal["mnist", "cifar10"],
     use_normalised_dataset: bool,
