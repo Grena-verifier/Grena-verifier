@@ -361,7 +361,7 @@ if config.specnumber and not config.input_box and not config.output_constraints:
 assert config.netname, 'a network has to be provided for analysis.'
 
 model_name = os.path.splitext(os.path.basename(config.netname))[0]
-bounds_save_path = os.path.join(config.output_dir, f"{model_name}_epsilon={config.epsilon}_imgid={args.imgid}.pkl")
+bounds_save_path = os.path.join(config.output_dir, f"raw_bounds.pkl")
 bounds_save_path = os.path.abspath(bounds_save_path)
 os.makedirs(config.output_dir, exist_ok=True)
 
