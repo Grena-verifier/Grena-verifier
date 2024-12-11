@@ -63,13 +63,11 @@ We tested 9 models across CIFAR-10 and MNIST datasets:
 | MNIST    | ConvMed    | convMedGRELU\_\_Point.onnx                       |
 | MNIST    | ConvSmall  | convSmallRELU\_\_Point.onnx                      |
 
-Download all models by running:
+Download all the models to the `/model` directory by running:
 
 ```bash
 bash download_models.sh
 ```
-
-This will download the models to the `/model` directory.
 
 <br>
 
@@ -88,7 +86,9 @@ To run any of the experiments, simply run the corresponding script with Python.
 python CConvBig_verify.py
 ```
 
-The results of all the experiments will be saved to the `experiment_scripts/results/[MODEL_NAME]/[verify|bounds]/` directory.
+<br>
+
+#### Experiment constant parameters
 
 For all the experiments we've kept the below parameters constant to the values below:
 
@@ -105,13 +105,13 @@ For all the experiments we've kept the below parameters constant to the values b
 
 The `tf_verify/Grena_runone_image.py` script provides a command-line interface for our verification system. Its key parameters are:
 
-| Parameter              | Description                                                                              | Values/Format                                    |
-| ---------------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------ |
-| `dataset`              | Dataset for verification<br> _(**Note:** `mnist` & `cifar10` use our 1000-row datasets)_ | `mnist`, `cifar10`, `acasxu`, `fashion`          |
-| `netname`              | Network file path                                                                        | Supports: `.pb`, `.pyt`, `.tf`, `.meta`, `.onnx` |
-| `output_dir`           | Output directory path                                                                    | -                                                |
-| `epsilon`              | L∞ perturbation value                                                                    | Float                                            |
-| `imgid`                | Single image ID to execute verification on.<br>If not specified, runs on entire dataset. | Integer                                          |
-| `use_wralu`            | WraLU solver type<br>If not specified, uses the default `fkrelu` solver                  | `sci`, `sciplus`, `sciall`                       |
-| `GRENA`                | Enable/Disable the GRENA refinement process                                              | Boolean<br>_(default: False)_                    |
-| `timeout_AR`           | Timeout in seconds for abstract refinement                                               | Float _(-1 disables timeout)_<br>_(default: -1)_ |
+| Parameter    | Description                                                                              | Values/Format                                    |
+| ------------ | ---------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| `dataset`    | Dataset for verification<br> _(**Note:** `mnist` & `cifar10` use our 1000-row datasets)_ | `mnist`, `cifar10`, `acasxu`, `fashion`          |
+| `netname`    | Network file path                                                                        | Supports: `.pb`, `.pyt`, `.tf`, `.meta`, `.onnx` |
+| `output_dir` | Output directory path                                                                    | -                                                |
+| `epsilon`    | L∞ perturbation value                                                                    | Float                                            |
+| `imgid`      | Single image ID to execute verification on.<br>If not specified, runs on entire dataset. | Integer                                          |
+| `use_wralu`  | WraLU solver type<br>If not specified, uses the default `fkrelu` solver                  | `sci`, `sciplus`, `sciall`                       |
+| `GRENA`      | Enable/Disable the GRENA refinement process                                              | Boolean<br>_(default: False)_                    |
+| `timeout_AR` | Timeout in seconds for abstract refinement                                               | Float _(-1 disables timeout)_<br>_(default: -1)_ |
