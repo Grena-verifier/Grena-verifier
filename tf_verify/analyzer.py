@@ -637,6 +637,7 @@ class Analyzer:
                     P_hat_list=Phat_allayer,
                     p_list=smallp_allayer,
                 )
+                solver_inputs.save_all_except_model(os.path.join(os.path.dirname(bounds_save_path), "DEBUG_solver_inputs.pt"))
                 # for index in range(len(IOIL_lbs)):
                 #     print(f'lenght of IOIL_lbs and IOIL_ubs are {IOIL_lbs[index].shape} {IOIL_ubs[index].shape}')
                 # for index in range(len(P_allayer)):
