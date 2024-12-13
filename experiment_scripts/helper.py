@@ -112,7 +112,7 @@ def generate_bounds_result(
         --sparse_n "{SPARSE_N}"
         --k "{K}"
         --s "{S}"
-        >> "{log_path}" 2>&1
+        2>&1 | grep --line-buffered -v "^Academic license" >> "{log_path}"
     ;
     """
     command = re.sub(r"\n\s*", " ", command).strip()
@@ -492,7 +492,7 @@ def verify_image_using_grena(
         --sparse_n "{SPARSE_N}"
         --k "{K}"
         --s "{S}"
-        >> "{log_path}" 2>&1
+        2>&1 | grep --line-buffered -v "^Academic license" >> "{log_path}"
     ;
     """
     command = re.sub(r"\n\s*", " ", command).strip()
