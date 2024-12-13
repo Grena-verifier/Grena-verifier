@@ -53,7 +53,7 @@ def run_bounds_experiment(
     plot_bounds_improvement(
         model_display_name,
         *bounds,
-        img_save_path=os.path.join(save_dir, f"RESULT_bounds_improvement_plot_cutoff={cutoff_threshold}.jpg"),
+        img_save_path=os.path.join(save_dir, f"RESULT_bounds_improvement_plot.jpg"),
         cutoff_threshold=cutoff_threshold,
     )
 

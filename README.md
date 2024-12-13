@@ -90,7 +90,7 @@ python CConvBig_verify.py
 
 The experiment results will be saved to the `experiment_scripts/results/[MODEL_NAME]/[verify|bounds]/` directory. The main result files are:
 
--   `bounds/RESULT_bounds_improvement_plot_cutoff=[CUTOFF].jpg`
+-   `bounds/RESULT_bounds_improvement_plot.jpg`
 -   `bounds/RESULT_solver_runtimes.csv`
 -   `verify/RESULT_GRENA_verification.csv`
 
