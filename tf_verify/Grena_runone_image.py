@@ -15,8 +15,10 @@
 """
 
 
+import datetime
 import sys
 import os
+import traceback
 cpu_affinity = os.sched_getaffinity(0)
 sys.path.insert(0, '../ELINA/python_interface/')
 sys.path.insert(0, '../deepg/code/')
@@ -693,6 +695,25 @@ for i, test in enumerate(tests):
             print("img", i, "Time out with unknown result. label =", label)
         except NameError:
             print("img", i, 'Time out with unknown result. "label" variable has not been initialised yet.')
+
+    except Exception as e:
+        current_time = datetime.datetime.now().isoformat()
+        error_log_filename = f"error_imgid={i}_{current_time}.log"
+        error_log_path = os.path.join(config.output_dir, error_log_filename)
+
+        # Save full error traceback to log file
+        with open(error_log_path, 'w') as f:
+            traceback.print_exc(file=f)
+
+        if config.GRENA:
+            with open(os.path.join(config.output_dir, GRENA_RESULT_FILENAME), 'a+', newline='') as f:
+                csv_writer = csv.writer(f)
+                model_name = os.path.splitext(os.path.basename(config.netname))[0]
+                status_msg = f'ERROR. Try re-running this image/experiment. Error logs saved to "{error_log_path}".'
+                csv_writer.writerow([i, f"{config.dataset} / {model_name}", epsilon, status_msg, str(time.time() - start)])
+
+        raise  # Re-raises the exception with original traceback
+
     finally:
         has_stopped = True
         if args.timeout_AR != -1:
