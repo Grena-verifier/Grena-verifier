@@ -142,7 +142,7 @@ bash download_models.sh
 Each model has two scripts in the `/experiment_scripts` directory:
 
 -   `[C|M][MODEL_NAME]_verify.py` — Performs verification on 30 selected images per model
--   `[C|M][MODEL_NAME]_bounds.py` — Compares bounds tightening using Gurobi vs our tailored solver
+-   `[C|M][MODEL_NAME]_bounds.py` — Compares bounds tightening on 1 image using Gurobi vs our tailored solver
 
 Scripts for CIFAR-10 models are prefixed with `C`, MNIST are prefixed with `M`.
 
