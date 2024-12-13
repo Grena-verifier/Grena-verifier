@@ -16,6 +16,7 @@
 
 
 import datetime
+import random
 import sys
 import os
 import traceback
@@ -288,6 +289,17 @@ def timeout_handler(signum, frame):
 
 signal.signal(signal.SIGALRM, timeout_handler)
 
+import torch.backends.cudnn
+def seed_everything(seed: int) -> None:
+    """Seeds everything for reproducibility."""
+    os.environ['PYTHONHASHSEED'] = str(seed)  # for Python multiprocessing
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
 parser = argparse.ArgumentParser(description='ERAN Example',  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--netname', type=isnetworkfile, default=config.netname, help='the network name, the extension can be only .pb, .pyt, .tf, .meta, and .onnx')
 parser.add_argument('--epsilon', type=float, default=config.epsilon, help='the epsilon for L_infinity perturbation')
@@ -339,6 +351,7 @@ parser.add_argument('--k', type=int, default=config.k, help='refine group size')
 parser.add_argument('--s', type=int, default=config.s, help='refine group sparsity parameter')
 parser.add_argument('--quant_step', type=float, default=config.quant_step, help='Quantization step for quantized networks')
 parser.add_argument("--approx_k", type=str2bool, default=config.approx_k, help="Use approximate fast k neuron constraints")
+parser.add_argument('--seed', type=int, default=None, help='Seed to initialize random number generators for reproducibility')
 
 
 # Logging options
@@ -355,6 +368,9 @@ for k, v in vars(args).items():
 #     raise DeprecationWarning("'--timeout_complete' is depreciated. Use '--timeout_final_milp' instead")
 config.json = vars(args)
 pprint(config.json)
+
+if args.seed is not None:
+   seed_everything(args.seed)
 
 if config.specnumber and not config.input_box and not config.output_constraints:
     config.input_box = '../data/acasxu/specs/acasxu_prop_' + str(config.specnumber) + '_input_prenormalized.txt'

@@ -13,6 +13,9 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 
+# RNG seed for reproducibility. Set to None to disable seeding.
+SEED: Optional[int] = 42
+
 # ERAN related hyperparams.
 SPARSE_N: int = 50
 K: int = 3
@@ -111,6 +114,7 @@ def generate_bounds_result(
         --output_dir "{save_dir}"
         --epsilon "{epsilon}"
         --imgid "{img_id}"
+        {'' if SEED is None else f"--seed {SEED}"}
         {
             '' if use_normalised_dataset
             else '--mean 0 --std 1' if dataset == "mnist"
@@ -353,6 +357,7 @@ def verify_image_using_grena(
         --epsilon "{epsilon}"
         --imgid "{img_id}"
         --timeout_AR 600
+        {'' if SEED is None else f"--seed {SEED}"}
         {
             '' if use_normalised_dataset
             else '--mean 0 --std 1' if dataset == "mnist"
