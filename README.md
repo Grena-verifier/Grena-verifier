@@ -170,3 +170,22 @@ For all the experiments we've kept the below parameters constant to the values b
 | `k`         | `3`         | ERAN's refine group size                      |
 | `s`         | `1`         | ERAN's refine group sparsity parameter        |
 | `use_wralu` | `"sciplus"` | WraLU solver type                             |
+
+<br>
+
+## Experimental Results
+
+We conducted 2 sets of experiments:
+
+- **Verification** — Perform verification on 30 selected images per model
+- **Bounds** — Compare bounds tightening on 1 image using Gurobi vs our tailored solver
+
+<br>
+
+### Verification Experiment
+
+![verification results](assets/verification_results.jpg)
+
+<br>
+
+### Bounds Experiment
