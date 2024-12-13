@@ -4,13 +4,13 @@ import pickle
 import re
 import subprocess
 import sys
-from typing import List, Literal, Optional, Tuple, Dict
+from typing import Dict, List, Literal, Optional, Tuple
 from typing_extensions import TypeAlias
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-import matplotlib.pyplot as plt
 
 
 # RNG seed for reproducibility. Set to None to disable seeding.
