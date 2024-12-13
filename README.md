@@ -124,3 +124,49 @@ The `tf_verify/Grena_runone_image.py` script provides a command-line interface f
 | `GRENA`      | Enable/Disable the GRENA refinement process                                                                              | Boolean<br>_(default: False)_                    |
 | `timeout_AR` | Timeout in seconds for abstract refinement                                                                               | Float _(-1 disables timeout)_<br>_(default: -1)_ |
 | `seed`       | Seed to initialize random number generators for reproducibility<br>_(if not specified, seed will not be explicitly set)_ | Integer                                          |
+
+<br>
+
+### Example Usage
+
+A usage example from our verification experiment:
+
+```bash
+python Grena_runone_image.py  \
+    --dataset "mnist"  \
+    --netname "/app/Grena-verifier/models/mnist/convSmallRELU__Point.onnx"  \
+    --output_dir "./results/MConvSmall/verify"  \
+    --epsilon "0.11"  \
+    --imgid "0"  \
+    --use_wralu "sciplus"  \
+    --GRENA True  \
+    --timeout_AR 600  \
+    --seed 42  \
+    \
+    --domain refinepoly  \
+    --sparse_n "50"  \
+    --k "3"  \
+    --s "1"  \
+    --mean 0  \
+    --std 1
+```
+
+A usage example from our bounds experiment:
+
+```bash
+python Grena_runone_image.py \
+    --dataset "mnist" \
+    --netname "/app/Grena-verifier/models/mnist/convSmallRELU__Point.onnx" \
+    --output_dir "./results/MConvSmall/bounds" \
+    --epsilon "0.11" \
+    --imgid "75" \
+    --use_wralu "sciplus" \
+    --seed 42  \
+    \
+    --domain refinepoly \
+    --sparse_n "50" \
+    --k "3" \
+    --s "1" \
+    --mean 0 \
+    --std 1
+```
