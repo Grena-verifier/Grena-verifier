@@ -189,3 +189,14 @@ We conducted 2 sets of experiments:
 <br>
 
 ### Bounds Experiment
+
+Below are symmetric log-scale histogram plots of the improvements from the bound tightening experiment.
+
+![CConvMed bounds histogram](assets/CConvMed_bounds_histogram.jpg)
+![CResNet4B bounds histogram](assets/CResNet4B_bounds_histogram.jpg)
+![CResNetA bounds histogram](assets/CResNetA_bounds_histogram.jpg)
+![CResNetB bounds histogram](assets/CResNetB_bounds_histogram.jpg)
+![M6x256 bounds histogram](assets/M6x256_bounds_histogram.jpg)
+![MConvBig bounds histogram](assets/MConvBig_bounds_histogram.jpg)
+![MConvMed bounds histogram](assets/MConvMed_bounds_histogram.jpg)
+![MConvSmall bounds histogram](assets/MConvSmall_bounds_histogram.jpg)
