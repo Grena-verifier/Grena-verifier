@@ -499,11 +499,6 @@ if config.mean is not None:
 
 os.sched_setaffinity(0,cpu_affinity)
 
-correctly_classified_images = 0
-verified_images = 0
-unsafe_images = 0
-falsified_images = 0
-cum_time = 0
 
 if config.vnn_lib_spec is not None:
     # input and output constraints in homogenized representation x >= C_lb * [x_0, eps, 1]; C_out [y, 1] >= 0
@@ -526,7 +521,6 @@ def init(args):
     global failed_already
     failed_already = args
 
-correct_list = []     
 GRENA_RESULT_FILENAME = "RESULT_GRENA_verification.csv"
 
 IOIL_lbs, IOIL_ubs = [], []
@@ -594,8 +588,6 @@ for i, test in enumerate(tests):
             status = "null"
             label = int(test[0])
             perturbed_label = None
-            correctly_classified_images +=1
-            correct_list.append(i)
             if config.normalized_region==True:
                 specLB = np.clip(image - epsilon,0,1)
                 specUB = np.clip(image + epsilon,0,1)
@@ -670,18 +662,14 @@ for i, test in enumerate(tests):
                     # verification succeeds
                     print("img", i, "Verified", label)
                     status = "Verified"
-                    verified_images += 1
                 else:
                     if (failed_labels != None and len(failed_labels)) > 0:
                         print("img", i, "Falsified")
                         status = "Falsified"
-                        falsified_images += 1
                     else:
                         print("img", i, "Unknown")
                         status = "Unknown"
-                        unsafe_images += 1
             end = time.time()
-            cum_time += end - start # only count samples where we did try to certify
 
             # Set status to unknown if the code somehow completes beyond the timeout timing.
             if end - start > int(args.timeout_AR):
@@ -700,8 +688,6 @@ for i, test in enumerate(tests):
         has_stopped = True
         end = time.time()
         status = "Unknown"
-        unsafe_images += 1
-        cum_time += end - start
         if config.GRENA:
             with open(os.path.join(config.output_dir, GRENA_RESULT_FILENAME), 'a+', newline='') as f:
                 csv_writer = csv.writer(f)
@@ -734,14 +720,3 @@ for i, test in enumerate(tests):
         has_stopped = True
         if args.timeout_AR != -1:
             signal.alarm(0)  # Clear timeout timer
-
-
-    print(f"progress: {1 + i - config.from_test}/{config.num_tests}, "
-            f"correct:  {correctly_classified_images}/{1 + i - config.from_test}, "
-            f"verified: {verified_images}/{correctly_classified_images}, "
-            f"unsafe: {unsafe_images}/{correctly_classified_images}, ",
-            f"falsified: {falsified_images}/{correctly_classified_images}, ",
-            f"time: {end - start:.3f}; {0 if cum_time==0 else cum_time / correctly_classified_images:.3f}; {cum_time:.3f}")
-
-print('analysis precision ',verified_images,'/ ', correctly_classified_images)
-print('correct image list', correct_list)
