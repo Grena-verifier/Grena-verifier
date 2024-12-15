@@ -177,8 +177,8 @@ For all the experiments we've kept the below parameters constant to the values b
 
 We conducted 2 sets of experiments:
 
-- **Verification** — Perform verification on 30 selected images per model
-- **Bounds** — Compare bounds tightening on 1 image using Gurobi vs our tailored solver
+-   **Verification** — Perform verification on 30 selected images per model
+-   **Bounds** — Compare bounds tightening on 1 image using Gurobi vs our tailored solver
 
 <br>
 
