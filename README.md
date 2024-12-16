@@ -151,15 +151,16 @@ bash download_models.sh
 
 Each model has two scripts in the `/experiment_scripts` directory:
 
--   `[C|M][MODEL_NAME]_verify.py` — Performs verification on 30 selected images per model
--   `[C|M][MODEL_NAME]_bounds.py` — Compares bounds tightening on 1 image using Gurobi vs our tailored solver
+-   `[C|M][MODEL_NAME]_verify.py` — Perform abstract refinement based verification on 30 selected images per model
+-   `[C|M][MODEL_NAME]_bounds.py` — Compare bounds tightening on 1 image using Gurobi vs our tailored solver
 
 Scripts for CIFAR-10 models are prefixed with `C`, MNIST are prefixed with `M`.
 
 To run any of the experiments, simply run the corresponding script with Python.
 
 ```bash
-python CConvBig_verify.py
+cd experiment_scripts
+python CConvBig_verify.py   # for CIFAR10 ConvBig verification exp.
 ```
 
 The experiment results will be saved to the `experiment_scripts/results/[MODEL_NAME]/[verify|bounds]/` directory. The main result files are:
@@ -185,13 +186,6 @@ For all the experiments we've kept the below parameters constant to the values b
 
 ## Experimental Results
 
-We conducted 2 sets of experiments:
-
--   **Verification** — Perform verification on 30 selected images per model
--   **Bounds** — Compare bounds tightening on 1 image using Gurobi vs our tailored solver
-
-<br>
-
 ### Verification Experiment
 
 ![verification results](assets/verification_results.jpg)
@@ -200,7 +194,7 @@ We conducted 2 sets of experiments:
 
 ### Bounds Experiment
 
-Below are symmetric log-scale histogram plots of the improvements from the bound tightening experiment.
+Below are symmetric log-scale histogram plots of the improvements from the bound comparison experiment.
 
 ![CConvMed bounds histogram](assets/CConvMed_bounds_histogram.jpg)
 ![CResNet4B bounds histogram](assets/CResNet4B_bounds_histogram.jpg)
