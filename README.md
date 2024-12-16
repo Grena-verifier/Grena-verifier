@@ -19,7 +19,7 @@ A dockerized implementation for setting up this repo can be found at our [Grena-
 You'll need
 
 -   NVIDIA GPU(s)
--   Gurobi license (i.e., the `gurobi.lic` file)
+-   Gurobi license _(i.e., the `gurobi.lic` file)_
 
 As well as these libaries:
 
@@ -32,13 +32,13 @@ As well as these libaries:
 
 ### Installation Steps
 
-1. Install the required libraries and ELINA by running `install.sh` with root privileges:
+1.  Install the required libraries and ELINA by running `install.sh` with root privileges:
 
     ```bash
     sudo bash install.sh
     ```
 
-2. Install the Python requirements:
+1.  Install the Python requirements:
 
     ```bash
     pip install --upgrade pip
