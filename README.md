@@ -8,11 +8,15 @@ We also utilized [WraLU: ReLU Hull Approximation](https://github.com/UQ-Trust-La
 
 <br>
 
-## Prerequisites and Installation
+## Setting up via Docker (recommended)
 
-A dockerized implementation for setting up this repo can be found at our [Grena-verifier-dockerised repo](https://github.com/Grena-verifier/Grena-verifier-dockerised). If you prefer not to use Docker, follow the steps below.
+For setting up our system, we recommend using our dockerized implementation at the [Grena-verifier-dockerised](https://github.com/Grena-verifier/Grena-verifier-dockerised) repo for an easy setup.
+
+If you prefer not to use Docker, follow the steps below.
 
 <br>
+
+## Setting up Manually
 
 ### System Requirements
 
