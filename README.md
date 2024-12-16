@@ -167,7 +167,30 @@ cd experiment_scripts
 python CConvBig_verify.py   # for CIFAR10 ConvBig verification exp.
 ```
 
-The experiment results will be saved to the `experiment_scripts/results/[MODEL_NAME]/[verify|bounds]/` directory. The main result files are:
+> _**Note:** The scripts will save all console logs to `terminal.log` in the results directory instead of printing to terminal._
+
+The experiment results will be saved to the `experiment_scripts/results/[MODEL_NAME]/[verify|bounds]/` directory:
+
+```
+# For example:
+.
+├── tf_verify/
+├── experiment_scripts/
+│   └── results/
+|       ├── M6x256
+│       │   ├── bounds/  <---
+│       │   └── verify/  <---
+|       └── MConvSmall
+│           ├── bounds/  <---
+│           └── verify/  <---
+├── README.md
+├── download_models.sh
+├── install_libraries.sh
+├── install.sh
+└── requirements.txt
+```
+
+The main result files are:
 
 -   `bounds/RESULT_bounds_improvement_plot.jpg`
 -   `bounds/RESULT_solver_runtimes.csv`
