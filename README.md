@@ -36,6 +36,14 @@ As well as these libaries:
 
 ### Installation Steps
 
+1.  Clone and initialise the ELINA submodule
+
+    ```bash
+    git clone https://github.com/Grena-verifier/Grena-verifier
+    cd Grena-verifier
+    git submodule update --init --recursive
+    ```
+
 1.  Install the required libraries and ELINA by running `install.sh` with root privileges:
 
     ```bash
