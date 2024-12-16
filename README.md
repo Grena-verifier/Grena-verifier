@@ -167,7 +167,7 @@ cd experiment_scripts
 python CConvBig_verify.py   # for CIFAR10 ConvBig verification exp.
 ```
 
-> _**Note:** The scripts will save all console logs to `terminal.log` in the results directory instead of printing to terminal._
+> :warning: _**NOTE:** The scripts will save all console logs to `terminal.log` in the results directory instead of printing to terminal._
 
 The experiment results will be saved to the `experiment_scripts/results/[MODEL_NAME]/[verify|bounds]/` directory:
 
