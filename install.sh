@@ -4,27 +4,27 @@ set -e
 print_usage() {
     echo "Usage: sudo ./$0 [OPTIONS]"
     echo "Options:"
-    echo "  -c, --use-cuda      Whether to install with CUDA support"
     echo "  -h, --help          Display this help message"
     exit 1
 }
 
-has_cuda=0
 while [[ $# -gt 0 ]]; do
     case $1 in
-        -c|--use-cuda)
-            has_cuda=1
-            shift
-            ;;
         -h|--help)
             print_usage
             ;;
-        *)
+        *)  
             echo "Error: Unknown parameter $1" >&2
             print_usage
             ;;
     esac
 done
+
+# Check for CUDA support
+if ! command -v nvidia-smi &> /dev/null || ! nvidia-smi &> /dev/null; then
+    echo "Error: CUDA support not found. Please ensure NVIDIA drivers and CUDA toolkit are properly installed."
+    exit 1
+fi
 
 # Check if user ran this script with sudo/root permission
 if [ "$EUID" -ne 0 ]; then
@@ -42,18 +42,15 @@ if [ "$EUID" -ne 0 ]; then
     fi
 fi
 
+# Install the other necessary libraries
 bash install_libraries.sh
 
-# Install ELINA found at the `./ELINA` dir
+# Install ELINA found at the `./ELINA` dir with CUDA support
 cd ELINA
-if test "$has_cuda" -eq 1; then
-    ./configure -use-cuda -use-deeppoly -use-gurobi -use-fconv
-    cd ./gpupoly/
-    cmake .
-    cd ..
-else
-    ./configure -use-deeppoly -use-gurobi -use-fconv
-fi
+./configure -use-cuda -use-deeppoly -use-gurobi -use-fconv
+cd ./gpupoly/
+cmake .
+cd ..
 make
 make install
 cd ..
