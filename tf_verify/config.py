@@ -92,5 +92,5 @@ class config:
     gamma = float('inf')
     quant_step = None
 
-    output_dir: str = "./" # Directory of all output files.
+    output_dir: str = "./results" # Directory of all output files.
     use_wralu: Union[None, Literal["sci", "sciplus", "sciall"]] = None
