@@ -304,7 +304,7 @@ parser = argparse.ArgumentParser(description='ERAN Example',  formatter_class=ar
 parser.add_argument('--netname', type=isnetworkfile, default=config.netname, help='the network name, the extension can be only .pb, .pyt, .tf, .meta, and .onnx')
 parser.add_argument('--epsilon', type=float, default=config.epsilon, help='the epsilon for L_infinity perturbation')
 parser.add_argument('--imgid', type=int, default=None, help='the single image id for execution')
-parser.add_argument('--GRENA', type=str2bool, default=False, help='enable GRENA refinement process')
+parser.add_argument('--GRENA', action='store_true', help='enable GRENA refinement process')
 parser.add_argument('--timeout_AR', type=float, default=-1, help='timeout (in seconds) for the abstract refinement process. Set to -1 to disable timeout.')
 parser.add_argument('--multi_prune', type=int, default=1, help='enable GRENA refinement process')
 parser.add_argument('--zonotope', type=str, default=config.zonotope, help='file to specify the zonotope matrix')

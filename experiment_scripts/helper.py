@@ -474,7 +474,7 @@ def verify_image_using_grena(
     mkdir -p "{save_dir}";
     '{sys.executable}' Grena_runone_image.py
         --domain refinepoly
-        --GRENA True
+        --GRENA
         --dataset "{dataset}"
         --netname "{model_path}"
         --output_dir "{save_dir}"

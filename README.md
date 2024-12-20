@@ -77,7 +77,7 @@ python Grena_runone_image.py  \
     --epsilon "0.11"  \
     --imgid "0"  \
     --use_wralu "sciplus"  \
-    --GRENA True  \
+    --GRENA  \
     --timeout_AR 600  \
     --seed 42  \
     \
