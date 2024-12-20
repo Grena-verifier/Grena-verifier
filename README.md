@@ -8,7 +8,7 @@ We also utilized [WraLU: ReLU Hull Approximation](https://github.com/UQ-Trust-La
 
 <br>
 
-## Setting up via Docker (recommended)
+# Setting up via Docker (recommended)
 
 For setting up our system, we recommend using our dockerized implementation at the [Grena-verifier-dockerised](https://github.com/Grena-verifier/Grena-verifier-dockerised) repo for an easy setup.
 
@@ -16,9 +16,9 @@ If you prefer not to use Docker, follow the steps below.
 
 <br>
 
-## Setting up Manually
+# Setting up Manually
 
-### System Requirements
+## System Requirements
 
 You'll need
 
@@ -34,7 +34,7 @@ As well as these libaries:
 
 <br>
 
-### Installation Steps
+## Installation Steps
 
 1.  Clone and initialise the ELINA submodule
 
@@ -59,7 +59,7 @@ As well as these libaries:
 
 <br>
 
-## Usage
+# Usage
 
 The `tf_verify/Grena_runone_image.py` script provides a command-line interface for our verification system. Its key parameters are:
 
@@ -81,7 +81,7 @@ The `tf_verify/Grena_runone_image.py` script provides a command-line interface f
 
 <br>
 
-### Example Usage
+## Example Usage
 
 A usage example from our verification experiment:
 
@@ -129,9 +129,9 @@ python Grena_runone_image.py \
 
 <br>
 
-## Running the Experiments
+# Running the Experiments
 
-### Models Tested
+## Models Tested
 
 We tested 9 models across CIFAR-10 and MNIST datasets:
 
@@ -155,7 +155,7 @@ bash download_models.sh
 
 <br>
 
-### Experiment Scripts
+## Experiment Scripts
 
 Each model has two scripts in the `/experiment_scripts` directory:
 
@@ -202,7 +202,7 @@ The main result files are:
 
 <br>
 
-#### Experiment constant parameters
+### Experiment constant parameters
 
 For all the experiments we've kept the below parameters constant to the values below:
 
@@ -215,15 +215,15 @@ For all the experiments we've kept the below parameters constant to the values b
 
 <br>
 
-## Experimental Results
+# Experimental Results
 
-### Verification Experiment
+## Verification Experiment
 
 ![verification results](assets/verification_results.jpg)
 
 <br>
 
-### Bounds Experiment
+## Bounds Experiment
 
 Below are symmetric log-scale histogram plots of the improvements from the bound comparison experiment.
 
