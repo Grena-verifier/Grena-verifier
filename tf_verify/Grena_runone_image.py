@@ -377,6 +377,7 @@ if config.specnumber and not config.input_box and not config.output_constraints:
     config.output_constraints = '../data/acasxu/specs/acasxu_prop_' + str(config.specnumber) + '_constraints.txt'
 
 assert config.netname, 'a network has to be provided for analysis.'
+assert args.imgid is not None, "An image ID needs to be provided for analysis"
 
 model_name = os.path.splitext(os.path.basename(config.netname))[0]
 bounds_save_path = os.path.join(config.output_dir, f"raw_bounds.pkl")
