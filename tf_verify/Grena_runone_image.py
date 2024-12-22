@@ -301,11 +301,11 @@ def seed_everything(seed: int) -> None:
     torch.use_deterministic_algorithms(True)
 
 parser = argparse.ArgumentParser(description='ERAN Example',  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument('--netname', type=isnetworkfile, default=config.netname, help='the network name, the extension can be only .pb, .pyt, .tf, .meta, and .onnx')
-parser.add_argument('--epsilon', type=float, default=config.epsilon, help='the epsilon for L_infinity perturbation')
-parser.add_argument('--imgid', type=int, default=None, help='the single image id for execution')
-parser.add_argument('--GRENA', action='store_true', help='enable GRENA refinement process')
-parser.add_argument('--timeout_AR', type=float, default=-1, help='timeout (in seconds) for the abstract refinement process. Set to -1 to disable timeout.')
+parser.add_argument('--netname', type=isnetworkfile, default=config.netname, help='Network file path. Supports only `.onnx` files')
+parser.add_argument('--epsilon', type=float, default=config.epsilon, help='L∞ perturbation value')
+parser.add_argument('--imgid', type=int, default=None, help='A single image ID to execute the experiment on')
+parser.add_argument('--GRENA', action='store_true', help='Sets system to do abstract refinement based verification experiment (if not specified, bounds comparison experiment will be done instead)')
+parser.add_argument('--timeout_AR', type=float, default=-1, help='Timeout in seconds for abstract refinement based verification experiment (if not specified, disables timeout). -1 disables timeout.')
 parser.add_argument('--multi_prune', type=int, default=1, help='enable GRENA refinement process')
 parser.add_argument('--zonotope', type=str, default=config.zonotope, help='file to specify the zonotope matrix')
 parser.add_argument('--subset', type=str, default=config.subset, help='suffix of the file to specify the subset of the test dataset to use')
@@ -314,7 +314,7 @@ parser.add_argument('--epsfile', type=str, default=config.epsfile, help='file sp
 parser.add_argument('--vnn_lib_spec', type=str, default=config.vnn_lib_spec, help='VNN_LIB spec file, defining input and output constraints')
 parser.add_argument('--specnumber', type=int, default=config.specnumber, help='the property number for the acasxu networks')
 parser.add_argument('--domain', type=str, default=config.domain, help='the domain name can be either deepzono, refinezono, deeppoly, refinepoly, gpupoly, refinegpupoly')
-parser.add_argument('--dataset', type=str, default=config.dataset, help='the dataset, can be either mnist, cifar10, acasxu, or fashion (Note: mnist & cifar10 will load our custom 1000-row Grena-verifier dataset)')
+parser.add_argument('--dataset', type=str, default=config.dataset, help='Dataset to execute the experiment on. Either mnist or cifar10 (Note: mnist & cifar10 uses our custom 1000-row GRENA-verifier dataset)')
 parser.add_argument('--complete', type=str2bool, default=config.complete,  help='flag specifying where to use complete verification or not')
 parser.add_argument('--timeout_lp', type=float, default=config.timeout_lp,  help='timeout for the LP solver')
 parser.add_argument('--timeout_final_lp', type=float, default=config.timeout_final_lp,  help='timeout for the final LP solver')
@@ -351,14 +351,14 @@ parser.add_argument('--k', type=int, default=config.k, help='refine group size')
 parser.add_argument('--s', type=int, default=config.s, help='refine group sparsity parameter')
 parser.add_argument('--quant_step', type=float, default=config.quant_step, help='Quantization step for quantized networks')
 parser.add_argument("--approx_k", type=str2bool, default=config.approx_k, help="Use approximate fast k neuron constraints")
-parser.add_argument('--seed', type=int, default=None, help='Seed to initialize random number generators for reproducibility')
+parser.add_argument('--seed', type=int, default=None, help='Seed for random number generators. Given the same seed, the same result will be produced (if not specified, seed will not be explicitly set)')
 
 
 # Logging options
 parser.add_argument('--logdir', type=str, default=None, help='Location to save logs to. If not specified, logs are not saved and emitted to stdout')
 parser.add_argument('--logname', type=str, default=None, help='Directory of log files in `logdir`, if not specified timestamp is used')
-parser.add_argument('--output_dir', type=str, default=config.output_dir, help='Directory of all output files')
-parser.add_argument('--use_wralu', type=str, default=config.use_wralu, help='Type of WraLU solver to use: "sci", "sciplus" or "sciall". If not specified, default to using original `fkrelu` solver (ie. don\'t use WraLU).')
+parser.add_argument('--output_dir', type=str, default=config.output_dir, help='Directory path to save experiment outputs')
+parser.add_argument('--use_wralu', type=str, default=config.use_wralu, help="WraLU's convex hull approximation method: \"sci\", \"sciplus\" or \"sciall\". If not specified, uses the ELINA's `fkrelu` solver (ie. don't use WraLU).")
 
 
 args = parser.parse_args()

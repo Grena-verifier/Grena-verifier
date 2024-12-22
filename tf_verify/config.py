@@ -28,17 +28,17 @@ class Device(Enum):
 class config:
 
     # General options
-    netname = None # the network name, the extension can be only .pyt, .tf and .meta
+    netname = None # Network file path. Supports only `.onnx` files
     bench_prop = None # the csv files recording a set of properties
     imageid = 0
     ARENA = False # flag to enable ARENA refinement
     multi_prune = 1 # by default, only prune one label at a time
     is_normalized = False # flag specifying whether the network has normalization layer
     property = None # the vnnlib file name, the extension can only be .vnnlib
-    epsilon = 0 # the epsilon for L_infinity perturbation
+    epsilon = 0 # L∞ perturbation value
     zonotope = None # file to specify the zonotope matrix
     domain = None # the domain name can be either deepzono, refinezono, deeppoly or refinepoly
-    dataset = None # the dataset, can be either mnist, cifar10, or acasxu
+    dataset = None # Dataset to execute the experiment on. Either mnist or cifar10 (Note: mnist & cifar10 uses our custom 1000-row GRENA-verifier dataset)
     complete = False # flag specifying where to use complete verification or not
     timeout_lp = 1 # timeout for the LP solver
     timeout_milp = 1 # timeout for the MILP solver
@@ -92,5 +92,5 @@ class config:
     gamma = float('inf')
     quant_step = None
 
-    output_dir: str = "./results" # Directory of all output files.
-    use_wralu: Union[None, Literal["sci", "sciplus", "sciall"]] = None
+    output_dir: str = "./results" # Directory path to save experiment outputs
+    use_wralu: Union[None, Literal["sci", "sciplus", "sciall"]] = None # WraLU's convex hull approximation method. If not specified, uses the ELINA's `fkrelu` solver (ie. don't use WraLU).
