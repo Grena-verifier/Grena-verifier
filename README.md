@@ -8,13 +8,17 @@ We also utilized [WraLU: ReLU Hull Approximation](https://github.com/UQ-Trust-La
 
 <br>
 
-## Prerequisites and Installation
+# Setting up via Docker (recommended)
 
-A dockerized implementation for setting up this repo can be found at our [Grena-verifier-dockerised repo](https://github.com/Grena-verifier/Grena-verifier-dockerised). If you prefer not to use Docker, follow the steps below.
+For setting up our system, we recommend using our dockerized implementation at the [Grena-verifier-dockerised](https://github.com/Grena-verifier/Grena-verifier-dockerised) repo for an easy setup.
+
+If you prefer not to use Docker, follow the steps below.
 
 <br>
 
-### System Requirements
+# Setting up Manually
+
+## System Requirements
 
 You'll need
 
@@ -30,7 +34,15 @@ As well as these libaries:
 
 <br>
 
-### Installation Steps
+## Installation Steps
+
+1.  Clone and initialise the ELINA submodule
+
+    ```bash
+    git clone https://github.com/Grena-verifier/Grena-verifier
+    cd Grena-verifier
+    git submodule update --init --recursive
+    ```
 
 1.  Install the required libraries and ELINA by running `install.sh` with root privileges:
 
@@ -47,29 +59,34 @@ As well as these libaries:
 
 <br>
 
-## Usage
+# Usage
 
 The `tf_verify/Grena_runone_image.py` script provides a command-line interface for our verification system. Its key parameters are:
 
-| Parameter    | Description                                                                                                              | Values/Format                                    |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------ |
-| `dataset`    | Dataset for verification<br> _(**Note:** `mnist` & `cifar10` use our 1000-row datasets)_                                 | `mnist`, `cifar10`, `acasxu`, `fashion`          |
-| `netname`    | Network file path                                                                                                        | Supports: `.pb`, `.pyt`, `.tf`, `.meta`, `.onnx` |
-| `output_dir` | Output directory path                                                                                                    | -                                                |
-| `epsilon`    | L∞ perturbation value                                                                                                    | Float                                            |
-| `imgid`      | Single image ID to execute verification on.<br>_(if not specified, runs on entire dataset.)_                             | Integer                                          |
-| `use_wralu`  | WraLU solver type<br>_(if not specified, uses the ELINA's `fkrelu` solver)_                                              | `sci`, `sciplus`, `sciall`                       |
-| `GRENA`      | Enable/Disable the GRENA refinement process                                                                              | Boolean<br>_(default: False)_                    |
-| `timeout_AR` | Timeout in seconds for abstract refinement                                                                               | Float _(-1 disables timeout)_<br>_(default: -1)_ |
-| `seed`       | Seed to initialize random number generators for reproducibility<br>_(if not specified, seed will not be explicitly set)_ | Integer                                          |
+| Parameter    | Description                                                                                                                                                                     | Values/Format                                     |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| `dataset`    | Dataset to execute the experiment on<br> _(**NOTE:** `mnist` & `cifar10` use our 1000-row datasets)_                                                                            | `mnist`, `cifar10`                                |
+| `netname`    | Network file path                                                                                                                                                               | String<br>_(supports only `.onnx` files)_         |
+| `output_dir` | Directory path to save experiment outputs                                                                                                                                       | String<br>_(default: `"./results"`)_              |
+| `epsilon`    | L∞ perturbation value                                                                                                                                                           | Float                                             |
+| `imgid`      | A single image ID to execute the experiment on                                                                                                                                  | Integer                                           |
+| `use_wralu`  | WraLU's convex hull approximation method _(see footnote [1] below)_<br>_(if not specified, uses the ELINA's `fkrelu` solver)_                                                   | `sci`, `sciplus`, `sciall`                        |
+| `GRENA`      | Sets system to do abstract refinement based verification experiment<br>_(if not specified, bounds comparison experiment will be done instead)_                                  | –<br>_(doesn't take values)_                      |
+| `timeout_AR` | Timeout in seconds for abstract refinement based verification experiment<br>_(if not specified, disables timeout)_<br>For our verification experiments, we set timeout to `600` | Float<br>_(default: `-1`, i.e. timeout disabled)_ |
+| `seed`       | Seed for random number generators<br>Given the same seed, the same result will be produced<br>_(if not specified, seed will not be explicitly set)_                             | Integer                                           |
+
+> _**[1]:**_ \
+> _`sci`, `sciplus`, `sciall` are the [3 convex hull approximation methods](https://github.com/UQ-Trust-Lab/WraLU/blob/main/kact/krelu/sci.py) provided by the [WraLU: ReLU Hull Approximation](https://github.com/UQ-Trust-Lab/WraLU) system, with `sci` being the fastest & least accurate, and `sciall` being the slowest & most accurate._ \
+> _For our experiments, we used `sciplus` for balance of performance & speed._
 
 <br>
 
-### Example Usage
+## Example Usage
 
 A usage example from our verification experiment:
 
 ```bash
+cd tf_verify
 python Grena_runone_image.py  \
     --dataset "mnist"  \
     --netname "/app/Grena-verifier/models/mnist/convSmallRELU__Point.onnx"  \
@@ -92,6 +109,7 @@ python Grena_runone_image.py  \
 A usage example from our bounds experiment:
 
 ```bash
+cd tf_verify
 python Grena_runone_image.py \
     --dataset "mnist" \
     --netname "/app/Grena-verifier/models/mnist/convSmallRELU__Point.onnx" \
@@ -111,9 +129,9 @@ python Grena_runone_image.py \
 
 <br>
 
-## Running the Experiments
+# Running the Experiments
 
-### Models Tested
+## Models Tested
 
 We tested 9 models across CIFAR-10 and MNIST datasets:
 
@@ -137,22 +155,46 @@ bash download_models.sh
 
 <br>
 
-### Experiment Scripts
+## Experiment Scripts
 
 Each model has two scripts in the `/experiment_scripts` directory:
 
--   `[C|M][MODEL_NAME]_verify.py` — Performs verification on 30 selected images per model
--   `[C|M][MODEL_NAME]_bounds.py` — Compares bounds tightening on 1 image using Gurobi vs our tailored solver
+-   `[C|M][MODEL_NAME]_verify.py` — Perform abstract refinement based verification on 30 selected images per model
+-   `[C|M][MODEL_NAME]_bounds.py` — Compare bounds tightening on 1 image using Gurobi vs our tailored solver
 
 Scripts for CIFAR-10 models are prefixed with `C`, MNIST are prefixed with `M`.
 
 To run any of the experiments, simply run the corresponding script with Python.
 
 ```bash
-python CConvBig_verify.py
+cd experiment_scripts
+python CConvBig_verify.py   # for CIFAR10 ConvBig verification exp.
 ```
 
-The experiment results will be saved to the `experiment_scripts/results/[MODEL_NAME]/[verify|bounds]/` directory. The main result files are:
+> :bulb: _**NOTE:** The scripts will save all console logs to `terminal.log` in the results directory instead of printing to terminal._
+
+The experiment results will be saved to the `experiment_scripts/results/[MODEL_NAME]/[verify|bounds]/` directory:
+
+```
+# For example:
+.
+├── tf_verify/
+├── experiment_scripts/
+│   └── results/
+|       ├── M6x256
+│       │   ├── bounds/  <---
+│       │   └── verify/  <---
+|       └── MConvSmall
+│           ├── bounds/  <---
+│           └── verify/  <---
+├── README.md
+├── download_models.sh
+├── install_libraries.sh
+├── install.sh
+└── requirements.txt
+```
+
+The main result files are:
 
 -   `bounds/RESULT_bounds_improvement_plot.jpg`
 -   `bounds/RESULT_solver_runtimes.csv`
@@ -160,7 +202,7 @@ The experiment results will be saved to the `experiment_scripts/results/[MODEL_N
 
 <br>
 
-#### Experiment constant parameters
+### Experiment constant parameters
 
 For all the experiments we've kept the below parameters constant to the values below:
 
@@ -173,24 +215,17 @@ For all the experiments we've kept the below parameters constant to the values b
 
 <br>
 
-## Experimental Results
+# Experimental Results
 
-We conducted 2 sets of experiments:
-
--   **Verification** — Perform verification on 30 selected images per model
--   **Bounds** — Compare bounds tightening on 1 image using Gurobi vs our tailored solver
-
-<br>
-
-### Verification Experiment
+## Verification Experiment
 
 ![verification results](assets/verification_results.jpg)
 
 <br>
 
-### Bounds Experiment
+## Bounds Experiment
 
-Below are symmetric log-scale histogram plots of the improvements from the bound tightening experiment.
+Below are symmetric log-scale histogram plots of the improvements from the bound comparison experiment.
 
 ![CConvMed bounds histogram](assets/CConvMed_bounds_histogram.jpg)
 ![CResNet4B bounds histogram](assets/CResNet4B_bounds_histogram.jpg)
