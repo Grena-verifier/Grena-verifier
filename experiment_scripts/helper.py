@@ -56,6 +56,8 @@ def run_bounds_experiment(
         cutoff_threshold=1e-10,
         min_exponent=-10,
         max_exponent=2,
+        num_bins=30,
+        figsize=(6, 4),
     )
 
 
@@ -226,6 +228,7 @@ def plot_bounds_improvement(
     max_exponent: Union[int, Literal["auto"]] = "auto",
     min_exponent: Union[int, Literal["auto"]] = "auto",
     num_bins: int = 40,
+    figsize: Tuple[int, int] = (8, 5),
 ) -> None:
     """
     Visualizes the improvement in bounds between Gurobi solver and our tailored solver using a histogram.
@@ -249,6 +252,7 @@ def plot_bounds_improvement(
         min_exponent (Union[int, Literal["auto"]]): Min exponent for log-scale bins. If "auto", \
             use 5th percentile of non-zero Gurobi-improvements after cutoff (default: "auto")
         num_bins (int): Number of log bins to use in the histogram (default: 40)
+        figsize (Tuple[int, int]): Figure size of plot (default: (8, 5))
     """
     # Calculate improvements (reduction in bound width)
     gurobi_improvement = (ori_flattened_ubs - ori_flattened_lbs) - (gurobi_flattened_ubs - gurobi_flattened_lbs)  # type: ignore
@@ -308,7 +312,7 @@ def plot_bounds_improvement(
     )
 
     # Create figure
-    fig, ax = plt.subplots(figsize=(8, 5))
+    fig, ax = plt.subplots(figsize=figsize)
 
     # Create fixed bins
     fixed_bins = np.logspace(min_exponent, max_exponent, num_bins)
