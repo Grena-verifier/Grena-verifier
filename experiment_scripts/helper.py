@@ -49,12 +49,13 @@ def run_bounds_experiment(
     extract_runtimes_into_csv(save_dir, model_display_name)
     bounds_pkl_path = get_bounds_pkl_path(save_dir)
     bounds = mask_bounds(*load_bounds_results(bounds_pkl_path))
-    cutoff_threshold = 1e-20
     plot_bounds_improvement(
         model_display_name,
         *bounds,
         img_save_path=os.path.join(save_dir, f"RESULT_bounds_improvement_plot.jpg"),
-        cutoff_threshold=cutoff_threshold,
+        cutoff_threshold=1e-10,
+        min_exponent=-10,
+        max_exponent=2,
     )
 
 
