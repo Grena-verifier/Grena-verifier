@@ -229,10 +229,8 @@ def plot_bounds_improvement(
     """
     Visualizes the improvement in bounds between Gurobi solver and our tailored solver using a histogram.
 
-    Creates a symmetric log-scale histogram comparing bound improvements (reductions in bound width)
-    between Gurobi and tailored solvers relative to original bounds. The visualization splits
-    improvements into a negative (bounds worsening) region on the left and positive (bounds
-    improvement) regions on the right.
+    Creates a log-scale histogram comparing bound improvements (reductions in bound width)
+    between Gurobi and tailored solvers relative to original bounds.
 
     Parameters:
         model_display_name (str): Name of the model to display in the plot title
@@ -249,24 +247,28 @@ def plot_bounds_improvement(
             use data's max (default: "auto")
         min_exponent (Union[int, Literal["auto"]]): Min exponent for log-scale bins. If "auto", \
             use 5th percentile of non-zero Gurobi-improvements after cutoff (default: "auto")
-        num_bins (int): Number of log bins to use in each half of the histogram (default: 50)
+        num_bins (int): Number of log bins to use in the histogram (default: 40)
     """
     # Calculate improvements (reduction in bound width)
     gurobi_improvement = (ori_flattened_ubs - ori_flattened_lbs) - (gurobi_flattened_ubs - gurobi_flattened_lbs)  # type: ignore
     our_improvement = (ori_flattened_ubs - ori_flattened_lbs) - (tailored_flattened_ubs - tailored_flattened_lbs)  # type: ignore
 
+    # Clamp negative values to 0
+    gurobi_improvement = np.maximum(gurobi_improvement, 0)
+    our_improvement = np.maximum(our_improvement, 0)
+
     # Remove neurons with Gurobi-improvements below cutoff threshold
     if cutoff_threshold is not None:
-        mask = np.abs(gurobi_improvement) > cutoff_threshold
+        mask = gurobi_improvement > cutoff_threshold
         gurobi_improvement = gurobi_improvement[mask]
         our_improvement = our_improvement[mask]
 
     # If max_exponent == "auto", dynamically scale `max_exponent` based on the max of the data
     if max_exponent == "auto":
-        max_abs = np.max(np.abs([gurobi_improvement, our_improvement]))
+        max_abs = np.max([gurobi_improvement, our_improvement])
         max_exponent_in_arrays = int(np.floor(np.log10(max_abs))) if max_abs != 0 else 0
         max_exponent = max_exponent_in_arrays + 1
-        assert np.all(np.abs([gurobi_improvement, our_improvement]) < 10**max_exponent)
+        assert np.all(np.concatenate([gurobi_improvement, our_improvement]) < 10**max_exponent)
 
     # If min_exponent == "auto", dynamically scale `min_exponent` to the 5th-percentile of Gurobi's data (excluding 0s)
     if min_exponent == "auto":
@@ -282,107 +284,69 @@ def plot_bounds_improvement(
     # Clamp values to bin range (min_magnitude to max_magnitude)
     gurobi_improvement = np.where(gurobi_improvement == 0, min_magnitude * 1.001, gurobi_improvement)
     gurobi_improvement = np.where(
-        np.abs(gurobi_improvement) < min_magnitude,
-        np.sign(gurobi_improvement) * min_magnitude * 1.001,  # slightly more to ensure it falls in biggest bin
+        gurobi_improvement < min_magnitude,
+        min_magnitude * 1.001,  # slightly more to ensure it falls in biggest bin
         gurobi_improvement,
     )
     gurobi_improvement = np.where(
-        np.abs(gurobi_improvement) > max_magnitude,
-        np.sign(gurobi_improvement) * max_magnitude * 0.999,  # slightly less to ensure it falls in smallest bin
+        gurobi_improvement > max_magnitude,
+        max_magnitude * 0.999,  # slightly less to ensure it falls in smallest bin
         gurobi_improvement,
     )
 
     our_improvement = np.where(our_improvement == 0, min_magnitude * 1.001, our_improvement)
     our_improvement = np.where(
-        np.abs(our_improvement) < min_magnitude,
-        np.sign(our_improvement) * min_magnitude * 1.001,  # slightly more to ensure it falls in biggest bin
+        our_improvement < min_magnitude,
+        min_magnitude * 1.001,  # slightly more to ensure it falls in biggest bin
         our_improvement,
     )
     our_improvement = np.where(
-        np.abs(our_improvement) > max_magnitude,
-        np.sign(our_improvement) * max_magnitude * 0.999,  # slightly less to ensure it falls in smallest bin
+        our_improvement > max_magnitude,
+        max_magnitude * 0.999,  # slightly less to ensure it falls in smallest bin
         our_improvement,
     )
 
-    # Create figure with two subplots side by side with no spacing
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
-    plt.subplots_adjust(wspace=0)
+    # Create figure
+    fig, ax = plt.subplots(figsize=(8, 5))
 
-    # Separate positive and negative improvements
-    pos_gurobi = gurobi_improvement[gurobi_improvement >= 0]
-    pos_our = our_improvement[our_improvement >= 0]
-    neg_gurobi = -gurobi_improvement[gurobi_improvement < 0]  # Take absolute value
-    neg_our = -our_improvement[our_improvement < 0]  # Take absolute value
-
-    # Create fixed bins for both positive and negative improvements
+    # Create fixed bins
     fixed_bins = np.logspace(min_exponent, max_exponent, num_bins)
 
-    # Plot negative improvements on the left
-    neg_counts_gurobi = ax1.hist(neg_gurobi, bins=fixed_bins, alpha=0.7, label="Gurobi")[0]
-    neg_counts_our = ax1.hist(neg_our, bins=fixed_bins, alpha=0.7, label="Our")[0]
+    # Plot improvements
+    counts_gurobi = ax.hist(gurobi_improvement, bins=fixed_bins, alpha=0.7, label="Gurobi")[0]
+    counts_our = ax.hist(our_improvement, bins=fixed_bins, alpha=0.7, label="Our")[0]
 
-    # Plot positive improvements on the right
-    pos_counts_gurobi = ax2.hist(pos_gurobi, bins=fixed_bins, alpha=0.7, label="Gurobi")[0]
-    pos_counts_our = ax2.hist(pos_our, bins=fixed_bins, alpha=0.7, label="Our")[0]
-
-    # Set the same y-axis limits on both negative and positive plots
+    # Set y-axis limit
     max_count = max(
-        max(
-            pos_counts_gurobi.max() if len(pos_counts_gurobi) > 0 else 0,
-            pos_counts_our.max() if len(pos_counts_our) > 0 else 0,
-        ),
-        max(
-            neg_counts_gurobi.max() if len(neg_counts_gurobi) > 0 else 0,
-            neg_counts_our.max() if len(neg_counts_our) > 0 else 0,
-        ),
+        counts_gurobi.max() if len(counts_gurobi) > 0 else 0,
+        counts_our.max() if len(counts_our) > 0 else 0,
     )
-    ax1.set_ylim(0, max_count * 1.1)  # Add 10% padding
-    ax2.set_ylim(0, max_count * 1.1)
+    ax.set_ylim(0, max_count * 1.1)  # Add 10% padding
 
     # Set x-axis to use log-scale
-    ax1.set_xscale("log")
-    ax2.set_xscale("log")
+    ax.set_xscale("log")
+    ax.set_xlim(min_magnitude, max_magnitude)
 
-    # Fix x-axis for both plots to be [min_magnitude, max_magnitude]
-    ax2.set_xlim(min_magnitude, max_magnitude)
-    ax1.set_xlim(max_magnitude, min_magnitude)  # Reversed limits
-
-    # Visually replace smallest bin ticker with 0
-    def pos_formatter(x: float, p: int) -> str:
+    # Format x-axis labels
+    def formatter(x: float, p: int) -> str:
         if min_magnitude * 0.999 <= x and x <= min_magnitude * 1.001:  # approx min_magnitude
             return "0"
         power = int(np.log10(x))
         return f"10$^{{{power}}}$"
 
-    def neg_formatter(x: float, p: int) -> str:
-        if min_magnitude * 0.999 <= x and x <= min_magnitude * 1.001:  # approx min_magnitude
-            return ""  # don't label, to avoid overlap with positive 0 ticker
-        power = int(np.log10(x))
-        return f"10$^{{{power}}}$"
+    ax.xaxis.set_major_formatter(FuncFormatter(formatter))
 
-    ax1.xaxis.set_major_formatter(FuncFormatter(neg_formatter))
-    ax2.xaxis.set_major_formatter(FuncFormatter(pos_formatter))
+    # Other plot configurations
+    ax.set_xlabel("Improvement (log-scale)")
+    ax.set_ylabel("Count")
+    ax.set_title("Bounds improvement")
+    ax.legend()
+    ax.grid(True, which="both", ls="-", alpha=0.2)
 
-    # Other misc. plot configurations
-    ax1.set_xlabel("Negative Improvement (log-scale)")
-    ax1.set_ylabel("Count")
-    ax1.set_title("Bounds worsening")
-    ax1.legend()
-    ax1.grid(True, which="both", ls="-", alpha=0.2)
-
-    ax2.set_xlabel("Improvement (log-scale)")
-    ax2.set_title("Bounds improvement")
-    ax2.legend()
-    ax2.grid(True, which="both", ls="-", alpha=0.2)
-
-    # Put negative and positive improvement graphs side-by-side
-    ax2.set_ylabel("")
-    ax2.set_yticklabels([])
     plt.suptitle(
         f"Bounds Improvement Distribution ({model_display_name}) ({cutoff_threshold if cutoff_threshold is not None else 'no'} cutoff)"
     )
     plt.tight_layout()
-    plt.subplots_adjust(wspace=0)
 
     if img_save_path is not None:
         os.makedirs(os.path.dirname(img_save_path), exist_ok=True)
