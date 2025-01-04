@@ -215,23 +215,72 @@ For all the experiments we've kept the below parameters constant to the values b
 
 <br>
 
-# Experimental Results
+# Experimental Results (Unseeded)
 
-## Verification Experiment
+Theres are our results for our abstract refinement based verification and bounds comparision experiments.
+
+As our tailored LP solver has some inherent randomness, you might not get the same results as shown below.
+
+Thus for reproducibility, our scripts in the `/experiment_scripts` dir has the `--seed` flag set to `42`, and provided the results for those in the [**Experimental Results (Seed 42)**](#experimental-results-seed-42) section below. However, do note that the seeding process slows down the bounds solving process, and you can expect an increase in runtime of up to 50%.
+
+## Verification Experiment (Unseeded)
+
+Below are the abstract refinement based verification experiment results without any seeding.
 
 ![verification results](assets/verification_results.jpg)
 
 <br>
 
-## Bounds Experiment
+## Bounds Experiment (Unseeded)
 
-Below are symmetric log-scale histogram plots of the improvements from the bound comparison experiment.
+Below are the log-scale histogram plots of the bound improvements from the bound comparison experiment without any seeding.
 
-![CConvMed bounds histogram](assets/CConvMed_bounds_histogram.jpg)
-![CResNet4B bounds histogram](assets/CResNet4B_bounds_histogram.jpg)
-![CResNetA bounds histogram](assets/CResNetA_bounds_histogram.jpg)
-![CResNetB bounds histogram](assets/CResNetB_bounds_histogram.jpg)
-![M6x256 bounds histogram](assets/M6x256_bounds_histogram.jpg)
-![MConvBig bounds histogram](assets/MConvBig_bounds_histogram.jpg)
-![MConvMed bounds histogram](assets/MConvMed_bounds_histogram.jpg)
-![MConvSmall bounds histogram](assets/MConvSmall_bounds_histogram.jpg)
+| ![CConvMed bounds histogram](assets/CConvMed_bounds_histogram_unseeded.jpg) | ![CResNet4B bounds histogram](assets/CResNet4B_bounds_histogram_unseeded.jpg)   |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| ![CResNetA bounds histogram](assets/CResNetA_bounds_histogram_unseeded.jpg) | ![CResNetB bounds histogram](assets/CResNetB_bounds_histogram_unseeded.jpg)     |
+| ![M6x256 bounds histogram](assets/M6x256_bounds_histogram_unseeded.jpg)     | ![MConvBig bounds histogram](assets/MConvBig_bounds_histogram_unseeded.jpg)     |
+| ![MConvMed bounds histogram](assets/MConvMed_bounds_histogram_unseeded.jpg) | ![MConvSmall bounds histogram](assets/MConvSmall_bounds_histogram_unseeded.jpg) |
+
+| Model      | Gurobi runtime (s) | Tailored solver runtime (s) |
+| ---------- | ------------------ | --------------------------- |
+| CConvMed   | 18338.4            | 23.9                        |
+| CResNet4B  | 74185.5            | 25.6                        |
+| CResNetA   | 51283.1            | 15.3                        |
+| CResNetB   | 56431.4            | 37.7                        |
+| M6x256     | 478.1              | 28.9                        |
+| MConvBig   | 69915.4            | 211.9                       |
+| MConvMed   | 12858.4            | 21.2                        |
+| MConvSmall | 536.3              | 14.5                        |
+
+<br>
+
+# Experimental Results (Seed 42)
+
+Below are the results with the `--seed` flag set to `42` to be reproducible.
+
+## Verification Experiment (Seed 42)
+
+![verification results](assets/verification_results_seed42.jpg)
+
+> :bulb: \_**NOTE:** Due to the increased runtime from seeding, 1 of the "verified" images for the seeded CIFAR10 ResNetB times out instead and becoming "unknown".
+
+<br>
+
+## Bounds Experiment (Seed 42)
+
+| ![CConvMed bounds histogram](assets/CConvMed_bounds_histogram_seed42.jpg) | ![CResNet4B bounds histogram](assets/CResNet4B_bounds_histogram_seed42.jpg)   |
+| ------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| ![CResNetA bounds histogram](assets/CResNetA_bounds_histogram_seed42.jpg) | ![CResNetB bounds histogram](assets/CResNetB_bounds_histogram_seed42.jpg)     |
+| ![M6x256 bounds histogram](assets/M6x256_bounds_histogram_seed42.jpg)     | ![MConvBig bounds histogram](assets/MConvBig_bounds_histogram_seed42.jpg)     |
+| ![MConvMed bounds histogram](assets/MConvMed_bounds_histogram_seed42.jpg) | ![MConvSmall bounds histogram](assets/MConvSmall_bounds_histogram_seed42.jpg) |
+
+| Model      | Gurobi runtime (s) | Tailored solver runtime (s) |
+| ---------- | ------------------ | --------------------------- |
+| CConvMed   | 18338.4            | 36.6                        |
+| CResNet4B  | 74185.5            | 44.0                        |
+| CResNetA   | 51283.1            | 26.0                        |
+| CResNetB   | 56431.4            | 53.3                        |
+| M6x256     | 478.1              | 40.4                        |
+| MConvBig   | 69915.4            | 302.6                       |
+| MConvMed   | 12858.4            | 27.6                        |
+| MConvSmall | 536.3              | 25.9                        |
