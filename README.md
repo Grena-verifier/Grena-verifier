@@ -235,6 +235,16 @@ Below are the abstract refinement based verification experiment results without 
 
 Below are the log-scale histogram plots of the bound improvements from the bound comparison experiment without any seeding.
 
+"Improvement" is defined as the difference between the original upper and lower bounds, minus the difference between the Gurobi/tailored-solved bounds:
+
+```
+improvement = (old_upper_bounds - old_lower_bounds) - (new_upper_bounds - new_lower_bounds)
+```
+
+The graphs shows the spread of the bounds improvement for both Gurobi (in blue) and our tailored solver (in orange). The height of the bars represents the number of neurons with improvement at the magnitude. Towards the right of the graph are exponentially bigger improvements.
+
+To interpret the results, if the orange bars significantly overlaps with the blue bars, it means our tailored solver achieved improvements comparable to that from Gurobi. If the orange bars are shifted towards the left of the blue bars, it means our tailored solver has significantly smaller improvements compared to Gurobi's.
+
 | ![CConvMed bounds histogram](assets/CConvMed_bounds_histogram_unseeded.jpg) | ![CResNet4B bounds histogram](assets/CResNet4B_bounds_histogram_unseeded.jpg)   |
 | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
 | ![CResNetA bounds histogram](assets/CResNetA_bounds_histogram_unseeded.jpg) | ![CResNetB bounds histogram](assets/CResNetB_bounds_histogram_unseeded.jpg)     |
