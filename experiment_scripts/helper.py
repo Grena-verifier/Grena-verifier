@@ -342,10 +342,10 @@ def plot_bounds_improvement(
     ax.xaxis.set_major_formatter(FuncFormatter(formatter))
 
     # Other plot configurations
-    ax.set_xlabel("Improvement (log-scale)")
-    ax.set_ylabel("Count")
+    ax.set_xlabel("Improvement (log-scale)", fontsize=12)
+    ax.set_ylabel("Count", fontsize=12)
     ax.set_title(model_display_name)
-    ax.legend()
+    ax.legend(fontsize=12)
     ax.grid(True, which="both", ls="-", alpha=0.2)
 
     plt.tight_layout()
