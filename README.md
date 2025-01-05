@@ -272,7 +272,7 @@ Below are the results with the `--seed` flag set to `42` to be reproducible.
 
 ![verification results](assets/verification_results_seed42.jpg)
 
-> :bulb: \_**NOTE:** Due to the increased runtime from seeding, 1 of the "verified" images for the seeded CIFAR10 ResNetB times out instead and becoming "unknown".
+> :bulb: _**NOTE:** Due to the increased runtime from seeding, 1 of the "verified" images for the seeded CIFAR10 ResNetB times out instead and becoming "unknown"._
 
 <br>
 
