@@ -52,7 +52,7 @@ def run_bounds_experiment(
     plot_bounds_improvement(
         model_display_name,
         *bounds,
-        img_save_path=os.path.join(save_dir, f"RESULT_bounds_improvement_plot.jpg"),
+        img_save_path=os.path.join(save_dir, f"RESULT_bounds_improvement_plot.png"),
         cutoff_threshold=1e-10,
         min_exponent=-10,
         max_exponent=2,
@@ -352,7 +352,7 @@ def plot_bounds_improvement(
 
     if img_save_path is not None:
         os.makedirs(os.path.dirname(img_save_path), exist_ok=True)
-        plt.savefig(img_save_path, bbox_inches='tight', pad_inches=0.05)
+        plt.savefig(img_save_path, bbox_inches='tight', pad_inches=0.05, dpi=300)
         plt.close()
     else:
         plt.show()
