@@ -157,12 +157,14 @@ bash download_models.sh
 
 ## Experiment Scripts
 
-Each model has two scripts in the `/experiment_scripts` directory:
+Each model _(except CIFAR10 ConvBig, see footnote)_ has two scripts in the `/experiment_scripts` directory:
 
 -   `[C|M][MODEL_NAME]_verify.py` — Perform abstract refinement based verification on 30 selected images per model
 -   `[C|M][MODEL_NAME]_bounds.py` — Compare bounds tightening on 1 image using Gurobi vs our tailored solver
 
 Scripts for CIFAR-10 models are prefixed with `C`, MNIST are prefixed with `M`.
+
+> :bulb: _**NOTE:** CIFAR10 ConvBig does not have a bounds comparison script as it verifies all images directly, thus not entering the refinement procedure to resolve neuron bounds._
 
 To run any of the experiments, simply run the corresponding script with Python.
 
