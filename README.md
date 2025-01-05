@@ -245,11 +245,11 @@ The graphs shows the spread of the bounds improvement for both Gurobi (in blue) 
 
 To interpret the results, if the orange bars significantly overlaps with the blue bars, it means our tailored solver achieved improvements comparable to that from Gurobi. If the orange bars are shifted towards the left of the blue bars, it means our tailored solver has significantly smaller improvements compared to Gurobi's.
 
-| ![CConvMed bounds histogram](assets/CConvMed_bounds_histogram_unseeded.jpg) | ![CResNet4B bounds histogram](assets/CResNet4B_bounds_histogram_unseeded.jpg)   |
+| ![CConvMed bounds histogram](assets/CConvMed_bounds_histogram_unseeded.png) | ![CResNet4B bounds histogram](assets/CResNet4B_bounds_histogram_unseeded.png)   |
 | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| ![CResNetA bounds histogram](assets/CResNetA_bounds_histogram_unseeded.jpg) | ![CResNetB bounds histogram](assets/CResNetB_bounds_histogram_unseeded.jpg)     |
-| ![M6x256 bounds histogram](assets/M6x256_bounds_histogram_unseeded.jpg)     | ![MConvBig bounds histogram](assets/MConvBig_bounds_histogram_unseeded.jpg)     |
-| ![MConvMed bounds histogram](assets/MConvMed_bounds_histogram_unseeded.jpg) | ![MConvSmall bounds histogram](assets/MConvSmall_bounds_histogram_unseeded.jpg) |
+| ![CResNetA bounds histogram](assets/CResNetA_bounds_histogram_unseeded.png) | ![CResNetB bounds histogram](assets/CResNetB_bounds_histogram_unseeded.png)     |
+| ![M6x256 bounds histogram](assets/M6x256_bounds_histogram_unseeded.png)     | ![MConvBig bounds histogram](assets/MConvBig_bounds_histogram_unseeded.png)     |
+| ![MConvMed bounds histogram](assets/MConvMed_bounds_histogram_unseeded.png) | ![MConvSmall bounds histogram](assets/MConvSmall_bounds_histogram_unseeded.png) |
 
 | Model      | Gurobi runtime (s) | Tailored solver runtime (s) |
 | ---------- | ------------------ | --------------------------- |
@@ -278,11 +278,11 @@ Below are the results with the `--seed` flag set to `42` to be reproducible.
 
 ## Bounds Experiment (Seed 42)
 
-| ![CConvMed bounds histogram](assets/CConvMed_bounds_histogram_seed42.jpg) | ![CResNet4B bounds histogram](assets/CResNet4B_bounds_histogram_seed42.jpg)   |
+| ![CConvMed bounds histogram](assets/CConvMed_bounds_histogram_seed42.png) | ![CResNet4B bounds histogram](assets/CResNet4B_bounds_histogram_seed42.png)   |
 | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| ![CResNetA bounds histogram](assets/CResNetA_bounds_histogram_seed42.jpg) | ![CResNetB bounds histogram](assets/CResNetB_bounds_histogram_seed42.jpg)     |
-| ![M6x256 bounds histogram](assets/M6x256_bounds_histogram_seed42.jpg)     | ![MConvBig bounds histogram](assets/MConvBig_bounds_histogram_seed42.jpg)     |
-| ![MConvMed bounds histogram](assets/MConvMed_bounds_histogram_seed42.jpg) | ![MConvSmall bounds histogram](assets/MConvSmall_bounds_histogram_seed42.jpg) |
+| ![CResNetA bounds histogram](assets/CResNetA_bounds_histogram_seed42.png) | ![CResNetB bounds histogram](assets/CResNetB_bounds_histogram_seed42.png)     |
+| ![M6x256 bounds histogram](assets/M6x256_bounds_histogram_seed42.png)     | ![MConvBig bounds histogram](assets/MConvBig_bounds_histogram_seed42.png)     |
+| ![MConvMed bounds histogram](assets/MConvMed_bounds_histogram_seed42.png) | ![MConvSmall bounds histogram](assets/MConvSmall_bounds_histogram_seed42.png) |
 
 | Model      | Gurobi runtime (s) | Tailored solver runtime (s) |
 | ---------- | ------------------ | --------------------------- |
