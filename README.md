@@ -219,6 +219,8 @@ For all the experiments we've kept the below parameters constant to the values b
 
 # Experimental Results (Unseeded)
 
+Our evaluation machine is equipped with two 2.40GHz Intel(R) Xeon(R) Silver 4210R CPUs with 384 GB of main memory and a NVIDIA RTX A5000 GPU.
+
 Theres are our results for our abstract refinement based verification and bounds comparision experiments.
 
 As our tailored LP solver has some inherent randomness, you might not get the same results as shown below.
