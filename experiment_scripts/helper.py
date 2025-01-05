@@ -56,8 +56,8 @@ def run_bounds_experiment(
         cutoff_threshold=1e-10,
         min_exponent=-10,
         max_exponent=2,
-        num_bins=30,
-        figsize=(6, 4),
+        num_bins=15,
+        figsize=(4, 3),
     )
 
 
@@ -344,18 +344,15 @@ def plot_bounds_improvement(
     # Other plot configurations
     ax.set_xlabel("Improvement (log-scale)")
     ax.set_ylabel("Count")
-    ax.set_title("Bounds improvement")
+    ax.set_title(model_display_name)
     ax.legend()
     ax.grid(True, which="both", ls="-", alpha=0.2)
 
-    plt.suptitle(
-        f"Bounds Improvement Distribution ({model_display_name}) ({cutoff_threshold if cutoff_threshold is not None else 'no'} cutoff)"
-    )
     plt.tight_layout()
 
     if img_save_path is not None:
         os.makedirs(os.path.dirname(img_save_path), exist_ok=True)
-        plt.savefig(img_save_path)
+        plt.savefig(img_save_path, bbox_inches='tight', pad_inches=0.05)
         plt.close()
     else:
         plt.show()
