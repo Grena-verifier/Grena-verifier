@@ -227,7 +227,7 @@ Thus for reproducibility, our scripts in the `/experiment_scripts` dir has the `
 
 Below are the abstract refinement based verification experiment results without any seeding.
 
-![verification results](assets/verification_results.jpg)
+![verification results](assets/verification_results_unseeded.jpg)
 
 <br>
 
