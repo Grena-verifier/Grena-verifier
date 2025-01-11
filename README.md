@@ -6,6 +6,8 @@ We use a tailored LP solver which is implemented in the `tf_verify/ml_bound_solv
 
 We also utilized [WraLU: ReLU Hull Approximation](https://github.com/UQ-Trust-Lab/WraLU) to compute convex hull approximations of k-ReLU groups, instead of ELINA's `fkrelu` function as used in ERAN. Their implementations are placed in the `tf_verify/wralu_functions` directory.
 
+A walkthrough video is provided [here](https://drive.google.com/file/d/17v1WnabNrzC-ZwJzJ4dLTQmm9JvDYfj5/view?usp=sharing).
+
 <br>
 
 # Setting up via Docker (recommended)
